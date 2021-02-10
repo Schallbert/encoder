@@ -135,7 +135,7 @@ void ClickEncoder::handleEncoder()
     }
 #else
 #error "Error: define ENC_DECODER to ENC_NORMAL or ENC_FLAKY"
-#endif
+#endif // ENC_FLAKY
 
     if (accelerationEnabled)
     {
@@ -299,4 +299,4 @@ ClickEncoder::eButton ClickEncoder::getButton(void)
 
     return result;
 }
-#endif
+#endif // WITHOUT_BUTTON

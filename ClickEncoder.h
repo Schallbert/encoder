@@ -1,12 +1,14 @@
 // ----------------------------------------------------------------------------
 // Rotary Encoder Driver with Acceleration
-// Supports Click, DoubleClick, Long Click
+// Supports Click, DoubleClick, Held, LongPressRepeat
 //
 // (c) 2010 karl@pitrich.com
 // (c) 2014 karl@pitrich.com
 //
 // Timer-based rotary encoder logic by Peter Dannegger
 // http://www.mikrocontroller.net/articles/Drehgeber
+//
+// Refactored and feature added (LongPressRepeat) by Schallbert 2021
 // ----------------------------------------------------------------------------
 
 #ifndef __have__ClickEncoder_h__
@@ -14,10 +16,6 @@
 
 // ----------------------------------------------------------------------------
 
-#include <stdint.h>
-#include <avr/io.h>
-#include <avr/interrupt.h>
-#include <avr/pgmspace.h>
 #include "Arduino.h"
 
 // ----------------------------------------------------------------------------
@@ -46,7 +44,7 @@ public:
     {
         Open = 0,
         Closed,
-        Pressed, // ????
+        Pressed, // Deprecated - Not used in implementation!
 
         Held,
         LongPressRepeat,
