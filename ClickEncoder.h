@@ -16,7 +16,7 @@
 
 // ----------------------------------------------------------------------------
 
-#include "Arduino.h"
+#include <Arduino.h>
 
 // ----------------------------------------------------------------------------
 
@@ -57,6 +57,10 @@ public:
 public:
     ClickEncoder(uint8_t A, uint8_t B, uint8_t BTN = -1,
                  uint8_t stepsPerNotch = 1, bool active = LOW);
+    ~ClickEncoder() = default;
+    ClickEncoder(const ClickEncoder &cpyEncoder) = delete;
+    ClickEncoder &operator=(const ClickEncoder &srcEncoder) = delete;
+
 
     void service(void);
     int16_t getValue(void);
@@ -64,8 +68,8 @@ public:
 #ifndef WITHOUT_BUTTON
 public:
     eButton getButton(void);
-    void setDoubleClickEnabled(const bool &d) { doubleClickEnabled = d; }
-    void setLongPressRepeatEnabled(const bool &d) { longPressRepeatEnabled = d; }
+    void setDoubleClickEnabled(const bool d) { doubleClickEnabled = d; };
+    void setLongPressRepeatEnabled(const bool d) { longPressRepeatEnabled = d; };
 
 private:
     void handleEncoder();
