@@ -16,17 +16,18 @@
 // ----------------------------------------------------------------------------
 // eButton configuration (values for 1ms timer service calls)
 //
-#define ENC_BUTTONINTERVAL 20           // check button every x milliseconds, also debouce time
-#define ENC_DOUBLECLICKTIME 400         // second click within 400ms
-#define ENC_LONGPRESSREPEATINTERVAL 200 // reports repeating-held every x ms
-#define ENC_HOLDTIME 1200               // report held button after 1.2s
+constexpr uint8_t ENC_BUTTONINTERVAL = 20;            // check button every x ms, also debouce time
+constexpr uint16_t ENC_DOUBLECLICKTIME = 400;         // second click within x ms
+constexpr uint16_t ENC_LONGPRESSREPEATINTERVAL = 200; // reports repeating-held every x ms
+constexpr uint16_t ENC_HOLDTIME = 1200;               // report held button after x ms
 
 // ----------------------------------------------------------------------------
 // Acceleration configuration (for 1000Hz calls to ::service())
 //
-#define ENC_ACCEL_TOP 3072 // max. acceleration: *12 (val >> 8)
-#define ENC_ACCEL_INC 25
-#define ENC_ACCEL_DEC 2
+constexpr uint8_t ENC_ACCEL_START = 200; // Start increasing count > (1/tick) below tick iterval of x ms
+constexpr uint8_t ENC_ACCEL_SLOPE = 25;  // below ACCEL_START, velocity progression of 1/x ticks
+// Example: increment every 100ms, without acceleration it would count to 10 within 1sec.
+// With acceleration START@200 and slope@25 it will count to 50 within 1 sec.
 
 // ----------------------------------------------------------------------------
 
@@ -57,9 +58,10 @@ ClickEncoder::ClickEncoder(
                    doubleClickEnabled(false),
                    longPressRepeatEnabled(false),
                    accelerationEnabled(false),
-                   delta(0),
-                   last(0),
+                   encoderValue(0),
+                   lastEncoderRead(0),
                    acceleration(0),
+                   lastMoved(ENC_ACCEL_START),
                    button(Open)
 {
     uint8_t configType = (pinsActive == LOW) ? INPUT_PULLUP : INPUT;
@@ -69,12 +71,12 @@ ClickEncoder::ClickEncoder(
 
     if (digitalRead(pinA) == pinsActive)
     {
-        last = 3;
+        lastEncoderRead = 3;
     }
 
     if (digitalRead(pinB) == pinsActive)
     {
-        last ^= 1;
+        lastEncoderRead ^= 1;
     }
 }
 
@@ -96,71 +98,71 @@ void ClickEncoder::handleEncoder()
     bool moved = false;
 
 #if ENC_DECODER == ENC_FLAKY
-    last = (last << 2) & 0x0F;
+    lastEncoderRead = (lastEncoderRead << 2) & 0x0F;
 
     if (digitalRead(pinA) == pinsActive)
     {
-        last |= 2;
+        lastEncoderRead |= 2;
     }
 
     if (digitalRead(pinB) == pinsActive)
     {
-        last |= 1;
+        lastEncoderRead |= 1;
     }
 
-    uint8_t tbl = pgm_read_byte(&table[last]);
+    uint8_t tbl = pgm_read_byte(&table[lastEncoderRead]);
     if (tbl)
     {
-        delta += tbl;
+        encoderValue += tbl;
         moved = true;
     }
 #elif ENC_DECODER == ENC_NORMAL
-    int8_t curr = 0;
+    int8_t currentEncoderRead = 0;
 
     if (digitalRead(pinA) == pinsActive)
     {
-        curr = 3;
+        currentEncoderRead = 3;
     }
 
     if (digitalRead(pinB) == pinsActive)
     {
-        curr ^= 1;
+        currentEncoderRead ^= 1;
     }
 
-    int8_t diff = last - curr;
-
-    if (diff & 1)
-    { // bit 0 = step
-        last = curr;
-        delta += (diff & 2) - 1; // bit 1 = direction (+/-)
+    int8_t encoderMovement = lastEncoderRead - currentEncoderRead;
+    
+    // bit 0 = step
+    if (encoderMovement & 1)
+    { 
+        lastEncoderRead = currentEncoderRead;
+        encoderValue += (encoderMovement & 2) - 1; // bit 1 = direction (+/-)
         moved = true;
     }
 #else
 #error "Error: define ENC_DECODER to ENC_NORMAL or ENC_FLAKY"
 #endif // ENC_FLAKY
-
     if (accelerationEnabled)
     {
-        handleAcceleration(moved);
+        handleAcceleration();
+
+        if (moved)
+        {
+            lastMoved = 0;
+        }
     }
 }
 
-void ClickEncoder::handleAcceleration(bool hasMoved)
+void ClickEncoder::handleAcceleration()
 {
-    // decelerate every tick
-    acceleration -= ENC_ACCEL_DEC;
-    if (acceleration & 0x8000)
+    ++lastMoved;
+    if (lastMoved >= ENC_ACCEL_START)
     {
-        acceleration = 0; // handle overflow of MSB is set
+        lastMoved = ENC_ACCEL_START;
+        acceleration = 0;
     }
-
-    if (hasMoved)
+    else
     {
-        // increment accelerator if encoder has been moved
-        if (acceleration <= (ENC_ACCEL_TOP - ENC_ACCEL_INC))
-        {
-            acceleration += ENC_ACCEL_INC;
-        }
+        acceleration = (ENC_ACCEL_START - lastMoved) / ENC_ACCEL_SLOPE;
     }
 }
 
@@ -251,14 +253,14 @@ int16_t ClickEncoder::getValue(void)
     int16_t val;
 
     cli();
-    val = delta;
+    val = encoderValue;
 
     if (steps == 2)
-        delta = val & 1;
+        encoderValue = val & 1;
     else if (steps == 4)
-        delta = val & 3;
+        encoderValue = val & 3;
     else
-        delta = 0; // default to 1 step per notch
+        encoderValue = 0; // default to 1 step per notch
     sei();
 
     if (steps == 4)
@@ -267,15 +269,14 @@ int16_t ClickEncoder::getValue(void)
         val >>= 1;
 
     int16_t r = 0;
-    int16_t accel = ((accelerationEnabled) ? (acceleration >> 8) : 0);
 
     if (val < 0)
     {
-        r -= 1 + accel;
+        r -= 1 + acceleration;
     }
     else if (val > 0)
     {
-        r += 1 + accel;
+        r += 1 + acceleration;
     }
 
     return r;

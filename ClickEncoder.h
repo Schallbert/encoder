@@ -73,7 +73,7 @@ public:
 
 private:
     void handleEncoder();
-    void handleAcceleration(bool hasMoved);
+    void handleAcceleration();
     void handleButton();
     void handleButtonPressed();
     void handleButtonReleased();
@@ -81,10 +81,10 @@ private:
 #endif
 
 public:
-    void setAccelerationEnabled(const bool &a)
+    void setAccelerationEnabled(const bool a)
     {
         accelerationEnabled = a;
-        if (accelerationEnabled == false)
+        if (!accelerationEnabled)
         {
             acceleration = 0;
         }
@@ -101,9 +101,10 @@ private:
     bool longPressRepeatEnabled;
 #endif
     bool accelerationEnabled;
-    volatile int16_t delta;
-    volatile int16_t last;
-    volatile uint16_t acceleration;
+    volatile int16_t encoderValue;
+    volatile int16_t lastEncoderRead;
+    volatile uint8_t acceleration;
+    volatile uint8_t lastMoved;
 #if ENC_DECODER != ENC_NORMAL
     static const int8_t table[16];
 #endif
