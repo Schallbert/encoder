@@ -7,6 +7,9 @@ constexpr uint8_t PIN_ENCA = 4;
 constexpr uint8_t PIN_ENCB = 5;
 constexpr uint8_t PIN_BTN = 3;
 
+constexpr uint16_t SERIAL_BAUDRATE = 9600;
+constexpr uint8_t PRINT_BASE = 10;
+
 // interval in which encoder values are fetched and printed in this demo
 constexpr uint16_t PRINTINTERVAL_MS = 100;
 
@@ -14,16 +17,16 @@ ClickEncoder *testEncoder{nullptr};
 
 // --- forward-declared function prototypes:
 // Prints out button state
-void printClickEncoderButtonState(ClickEncoder::eButton buttonState);
+void printClickEncoderButtonState();
 // Prints turn information (turn status, direction, Acceleration value)
-void printClickEncoderValue(int16_t value);
+void printClickEncoderValue();
 // Prints accumulated turn information
-void printClickEncoderCount(int16_t value);
+void printClickEncoderCount();
 
 void setup()
 {
     // Use the serial connection to print out encoder's behavior
-    Serial.begin(9600);
+    Serial.begin(SERIAL_BAUDRATE);
     // Setup and configure "full-blown" ClickEncoder
     testEncoder = new ClickEncoder(PIN_ENCA, PIN_ENCB, PIN_BTN, 4, false);
     testEncoder->setAccelerationEnabled(true);
@@ -48,18 +51,16 @@ void loop()
     {
         readIntervalCount = 0;
 
-        uint16_t value = testEncoder->getValue();
-
-        printClickEncoderButtonState(testEncoder->getButton());
-        printClickEncoderValue(value);
-        printClickEncoderCount(value);
+        printClickEncoderButtonState();
+        printClickEncoderValue();
+        //printClickEncoderCount();
     }
     ++readIntervalCount;
 }
 
-void printClickEncoderButtonState(ClickEncoder::eButton buttonState)
+void printClickEncoderButtonState()
 {
-    switch (buttonState)
+    switch (testEncoder->getButton())
     {
     case ClickEncoder::Clicked:
         Serial.println("Button clicked");
@@ -85,23 +86,24 @@ void printClickEncoderButtonState(ClickEncoder::eButton buttonState)
     }
 }
 
-void printClickEncoderValue(int16_t value)
+void printClickEncoderValue()
 {
-    if (value)
+    int16_t value = testEncoder->getIncrement();
+    if (value != 0)
     {
         Serial.print("Encoder value: ");
-        Serial.println(value);
+        Serial.println(value, PRINT_BASE);
     }
 }
 
-void printClickEncoderCount(int16_t value)
+void printClickEncoderCount()
 {
-    static int valCount{0};
-
-    if (value)
+    static int16_t lastValue{0};
+    int16_t value = testEncoder->getAccumulate();
+    if (value != lastValue)
     {
-        valCount += value;
         Serial.print("Encoder count: ");
-        Serial.println(valCount);
+        Serial.println(value, PRINT_BASE);
     }
+    lastValue = value;
 }
