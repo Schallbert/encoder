@@ -75,7 +75,7 @@ public:
 private:
     uint8_t getBitCode();
     void handleEncoder();
-    void handleAcceleration();
+    int8_t handleValues(int8_t moved);
     void handleButton();
     void handleButtonPressed();
     void handleButtonReleased();

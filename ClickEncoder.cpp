@@ -24,8 +24,8 @@ constexpr uint16_t ENC_HOLDTIME = 1200;               // report held button afte
 // ----------------------------------------------------------------------------
 // Acceleration configuration (for 1000Hz calls to ::service())
 //
-constexpr uint8_t ENC_ACCEL_START = 200; // Start increasing count > (1/tick) below tick iterval of x ms
-constexpr uint8_t ENC_ACCEL_SLOPE = 25;  // below ACCEL_START, velocity progression of 1/x ticks
+constexpr uint8_t ENC_ACCEL_START = 64; // Start increasing count > (1/tick) below tick iterval of x ms.
+constexpr uint8_t ENC_ACCEL_SLOPE = 16;  // below ACCEL_START, velocity progression of 1/x ticks
 // Example: increment every 100ms, without acceleration it would count to 10 within 1sec.
 // With acceleration START@200 and slope@25 it will count to 50 within 1 sec.
 
@@ -87,7 +87,7 @@ void ClickEncoder::handleEncoder()
 {
 
 #if ENC_DECODER == ENC_FLAKY
-    //TODO: refactor 
+    //TODO: refactor
     lastEncoderRead = (lastEncoderRead << 2) & 0x0F;
 
     if (digitalRead(pinA) == pinsActive)
@@ -108,12 +108,14 @@ void ClickEncoder::handleEncoder()
     }
 #elif ENC_DECODER == ENC_NORMAL
     // bit0 of this indicates if the status has changed
-    // bit1 indicates an "overflow 3" where it goes 0->3 or 3->0, bit7 is the direction
+    // bit1 indicates an "overflow 3" where it goes 0->3 or 3->0
+
     uint8_t encoderRead = getBitCode();
-    uint8_t encoderMovement = encoderRead - lastEncoderRead;
-    encoderAccumulate += ((encoderMovement & 1) - (encoderMovement & 2));
+    uint8_t rawMovement = encoderRead - lastEncoderRead;
+    // This is the magic, converts raw to: -1 counterclockwise, 0 no, 1 clockwise
+    int8_t signedMovement = ((rawMovement & 1) - (rawMovement & 2));
     lastEncoderRead = encoderRead;
-    
+
     // encoderMovement will now show:
     // 0 when not turned
     // -1 turned anticlockwise
@@ -121,56 +123,59 @@ void ClickEncoder::handleEncoder()
 #else
 #error "Error: define ENC_DECODER to ENC_NORMAL or ENC_FLAKY"
 #endif // ENC_FLAKY
+    encoderAccumulate += handleValues(signedMovement);
+}
 
-/*
-    if (accelerationEnabled)
+int8_t ClickEncoder::handleValues(int8_t moved)
+{
+
+    ++lastMoved;
+    if (lastMoved >= ENC_ACCEL_START)
     {
-        handleAcceleration();
+        lastMoved = ENC_ACCEL_START;
+    }
 
-        if (encoderMovement)
+    if (moved == 0)
+    {
+        return 0;
+    }
+
+    if (!accelerationEnabled)
+    {
+        return moved;
+    }
+    else
+    {
+        uint8_t acceleration{(ENC_ACCEL_START - lastMoved) / ENC_ACCEL_SLOPE};
+        lastMoved = 0;
+        if (moved > 0)
         {
-            lastMoved = 0;
+            return acceleration;
+        }
+        else
+        {
+            return -acceleration;
         }
     }
-*/
-    
 }
 
 uint8_t ClickEncoder::getBitCode()
 {
-    // BitCode:
+    // GrayCode convert
     // !A && !B --> 0
     // !A && B --> 1
-    // A && B --> 3
-    // A && !B --> 2
+    // A && B --> 2
+    // A && !B --> 3
     uint8_t currentEncoderRead{0};
 
-    // set result to 3 if A == true
-    /*bool readA = digitalRead(pinA);
-    currentEncoderRead |= readA;
-    currentEncoderRead |= (readA << 1);*/
-    if(digitalRead(pinA))
+    if (digitalRead(pinA))
     {
         currentEncoderRead = 3;
     }
 
     // invert result's 0th bit if set
     currentEncoderRead ^= digitalRead(pinB);
-   
     return currentEncoderRead;
-}
-
-void ClickEncoder::handleAcceleration()
-{
-    ++lastMoved;
-    if (lastMoved >= ENC_ACCEL_START)
-    {
-        lastMoved = ENC_ACCEL_START;
-    }
-    else
-    {
-        encoderAccumulate += (ENC_ACCEL_START - lastMoved) / ENC_ACCEL_SLOPE;
-    }
 }
 
 // ----------------------------------------------------------------------------
@@ -189,7 +194,6 @@ int16_t ClickEncoder::getAccumulate()
 {
     return (encoderAccumulate / stepsPerNotch);
 }
-
 
 // ----------------------------------------------------------------------------
 
