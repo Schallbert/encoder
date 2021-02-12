@@ -56,22 +56,24 @@ public:
 
 public:
     ClickEncoder(uint8_t A, uint8_t B, uint8_t BTN = -1,
-                 uint8_t stepsPerNotch = 1, bool active = LOW);
+                 uint8_t stepsPerNotch = 4, bool active = LOW);
     ~ClickEncoder() = default;
     ClickEncoder(const ClickEncoder &cpyEncoder) = delete;
     ClickEncoder &operator=(const ClickEncoder &srcEncoder) = delete;
 
 
-    void service(void);
-    int16_t getValue(void);
+    void service();
+    int16_t getIncrement();
+    int16_t getAccumulate();
 
 #ifndef WITHOUT_BUTTON
 public:
-    eButton getButton(void);
-    void setDoubleClickEnabled(const bool d) { doubleClickEnabled = d; };
-    void setLongPressRepeatEnabled(const bool d) { longPressRepeatEnabled = d; };
+    eButton getButton();
+    void setDoubleClickEnabled(const bool b) { doubleClickEnabled = b; };
+    void setLongPressRepeatEnabled(const bool b) { longPressRepeatEnabled = b; };
 
 private:
+    uint8_t getBitCode();
     void handleEncoder();
     void handleAcceleration();
     void handleButton();
@@ -81,29 +83,22 @@ private:
 #endif
 
 public:
-    void setAccelerationEnabled(const bool a)
-    {
-        accelerationEnabled = a;
-        if (!accelerationEnabled)
-        {
-            acceleration = 0;
-        }
-    }
+    void setAccelerationEnabled(const bool a) { accelerationEnabled = a; };
 
 private:
     const uint8_t pinA;
     const uint8_t pinB;
     const uint8_t pinBTN;
-    uint8_t steps;
+    const uint8_t stepsPerNotch;
     const bool pinsActive;
 #ifndef WITHOUT_BUTTON
     bool doubleClickEnabled;
     bool longPressRepeatEnabled;
 #endif
     bool accelerationEnabled;
-    volatile int16_t encoderValue;
-    volatile int16_t lastEncoderRead;
-    volatile uint8_t acceleration;
+    volatile int8_t lastEncoderRead;
+    volatile int16_t encoderAccumulate;
+    volatile int16_t lastEncoderAccumulate;
     volatile uint8_t lastMoved;
 #if ENC_DECODER != ENC_NORMAL
     static const int8_t table[16];

@@ -53,14 +53,14 @@ ClickEncoder::ClickEncoder(
     bool active) : pinA(A),
                    pinB(B),
                    pinBTN(BTN),
-                   steps(stepsPerNotch),
+                   stepsPerNotch(stepsPerNotch),
                    pinsActive(active),
                    doubleClickEnabled(false),
                    longPressRepeatEnabled(false),
                    accelerationEnabled(false),
-                   encoderValue(0),
                    lastEncoderRead(0),
-                   acceleration(0),
+                   encoderAccumulate(0),
+                   lastEncoderAccumulate(0),
                    lastMoved(ENC_ACCEL_START),
                    button(Open)
 {
@@ -68,16 +68,6 @@ ClickEncoder::ClickEncoder(
     pinMode(pinA, configType);
     pinMode(pinB, configType);
     pinMode(pinBTN, configType);
-
-    if (digitalRead(pinA) == pinsActive)
-    {
-        lastEncoderRead = 3;
-    }
-
-    if (digitalRead(pinB) == pinsActive)
-    {
-        lastEncoderRead ^= 1;
-    }
 }
 
 // ----------------------------------------------------------------------------
@@ -95,9 +85,9 @@ void ClickEncoder::service(void)
 
 void ClickEncoder::handleEncoder()
 {
-    bool moved = false;
 
 #if ENC_DECODER == ENC_FLAKY
+    //TODO: refactor 
     lastEncoderRead = (lastEncoderRead << 2) & 0x0F;
 
     if (digitalRead(pinA) == pinsActive)
@@ -117,39 +107,57 @@ void ClickEncoder::handleEncoder()
         moved = true;
     }
 #elif ENC_DECODER == ENC_NORMAL
-    int8_t currentEncoderRead = 0;
-
-    if (digitalRead(pinA) == pinsActive)
-    {
-        currentEncoderRead = 3;
-    }
-
-    if (digitalRead(pinB) == pinsActive)
-    {
-        currentEncoderRead ^= 1;
-    }
-
-    int8_t encoderMovement = lastEncoderRead - currentEncoderRead;
+    // bit0 of this indicates if the status has changed
+    // bit1 indicates an "overflow 3" where it goes 0->3 or 3->0, bit7 is the direction
+    uint8_t encoderRead = getBitCode();
+    uint8_t encoderMovement = encoderRead - lastEncoderRead;
+    encoderAccumulate += ((encoderMovement & 1) - (encoderMovement & 2));
+    lastEncoderRead = encoderRead;
     
-    // bit 0 = step
-    if (encoderMovement & 1)
-    { 
-        lastEncoderRead = currentEncoderRead;
-        encoderValue += (encoderMovement & 2) - 1; // bit 1 = direction (+/-)
-        moved = true;
-    }
+    // encoderMovement will now show:
+    // 0 when not turned
+    // -1 turned anticlockwise
+    // 1 turned clockwise
 #else
 #error "Error: define ENC_DECODER to ENC_NORMAL or ENC_FLAKY"
 #endif // ENC_FLAKY
+
+/*
     if (accelerationEnabled)
     {
         handleAcceleration();
 
-        if (moved)
+        if (encoderMovement)
         {
             lastMoved = 0;
         }
     }
+*/
+    
+}
+
+uint8_t ClickEncoder::getBitCode()
+{
+    // BitCode:
+    // !A && !B --> 0
+    // !A && B --> 1
+    // A && B --> 3
+    // A && !B --> 2
+    uint8_t currentEncoderRead{0};
+
+    // set result to 3 if A == true
+    /*bool readA = digitalRead(pinA);
+    currentEncoderRead |= readA;
+    currentEncoderRead |= (readA << 1);*/
+    if(digitalRead(pinA))
+    {
+        currentEncoderRead = 3;
+    }
+
+    // invert result's 0th bit if set
+    currentEncoderRead ^= digitalRead(pinB);
+   
+    return currentEncoderRead;
 }
 
 void ClickEncoder::handleAcceleration()
@@ -158,13 +166,30 @@ void ClickEncoder::handleAcceleration()
     if (lastMoved >= ENC_ACCEL_START)
     {
         lastMoved = ENC_ACCEL_START;
-        acceleration = 0;
     }
     else
     {
-        acceleration = (ENC_ACCEL_START - lastMoved) / ENC_ACCEL_SLOPE;
+        encoderAccumulate += (ENC_ACCEL_START - lastMoved) / ENC_ACCEL_SLOPE;
     }
 }
+
+// ----------------------------------------------------------------------------
+
+int16_t ClickEncoder::getIncrement()
+{
+    int16_t result = encoderAccumulate - lastEncoderAccumulate;
+    lastEncoderAccumulate = encoderAccumulate;
+
+    // divide value by stepsPerNotch
+    result = result / stepsPerNotch;
+    return result;
+}
+
+int16_t ClickEncoder::getAccumulate()
+{
+    return (encoderAccumulate / stepsPerNotch);
+}
+
 
 // ----------------------------------------------------------------------------
 
@@ -245,44 +270,6 @@ void ClickEncoder::handleButtonReleased()
         }
     }
 }
-
-// ----------------------------------------------------------------------------
-
-int16_t ClickEncoder::getValue(void)
-{
-    int16_t val;
-
-    cli();
-    val = encoderValue;
-
-    if (steps == 2)
-        encoderValue = val & 1;
-    else if (steps == 4)
-        encoderValue = val & 3;
-    else
-        encoderValue = 0; // default to 1 step per notch
-    sei();
-
-    if (steps == 4)
-        val >>= 2;
-    if (steps == 2)
-        val >>= 1;
-
-    int16_t r = 0;
-
-    if (val < 0)
-    {
-        r -= 1 + acceleration;
-    }
-    else if (val > 0)
-    {
-        r += 1 + acceleration;
-    }
-
-    return r;
-}
-
-// ----------------------------------------------------------------------------
 
 #ifndef WITHOUT_BUTTON
 ClickEncoder::eButton ClickEncoder::getButton(void)
