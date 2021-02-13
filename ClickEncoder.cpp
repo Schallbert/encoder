@@ -2,13 +2,7 @@
 // Rotary Encoder Driver with Acceleration
 // Supports Click, DoubleClick, Held, LongPressRepeat
 //
-// (c) 2010 karl@pitrich.com
-// (c) 2014 karl@pitrich.com
-//
-// Timer-based rotary encoder logic by Peter Dannegger
-// http://www.mikrocontroller.net/articles/Drehgeber
-//
-// Refactored and feature added (LongPressRepeat) by Schallbert 2021
+// Refactored, logic upgraded and feature added (LongPressRepeat) by Schallbert 2021
 // ----------------------------------------------------------------------------
 
 #include "ClickEncoder.h"
@@ -22,26 +16,12 @@ constexpr uint16_t ENC_LONGPRESSREPEATINTERVAL = 200; // reports repeating-held 
 constexpr uint16_t ENC_HOLDTIME = 1200;               // report held button after x ms
 
 // ----------------------------------------------------------------------------
-// Acceleration configuration (for 1000Hz calls to ::service())
+// Acceleration configuration (for 1ms calls to ::service())
 //
 constexpr uint8_t ENC_ACCEL_START = 64; // Start increasing count > (1/tick) below tick iterval of x ms.
 constexpr uint8_t ENC_ACCEL_SLOPE = 16;  // below ACCEL_START, velocity progression of 1/x ticks
 // Example: increment every 100ms, without acceleration it would count to 10 within 1sec.
 // With acceleration START@200 and slope@25 it will count to 50 within 1 sec.
-
-// ----------------------------------------------------------------------------
-
-#if ENC_DECODER != ENC_NORMAL
-#ifdef ENC_HALFSTEP
-// decoding table for hardware with flaky notch (half resolution)
-const int8_t ClickEncoder::table[16] __attribute__((__progmem__)) = {
-    0, 0, -1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, -1, 0, 0};
-#else
-// decoding table for normal hardware
-const int8_t ClickEncoder::table[16] __attribute__((__progmem__)) = {
-    0, 1, -1, 0, -1, 0, 0, 1, 1, 0, 0, -1, 0, -1, 1, 0};
-#endif
-#endif
 
 // ----------------------------------------------------------------------------
 
@@ -85,28 +65,6 @@ void ClickEncoder::service(void)
 
 void ClickEncoder::handleEncoder()
 {
-
-#if ENC_DECODER == ENC_FLAKY
-    //TODO: refactor
-    lastEncoderRead = (lastEncoderRead << 2) & 0x0F;
-
-    if (digitalRead(pinA) == pinsActive)
-    {
-        lastEncoderRead |= 2;
-    }
-
-    if (digitalRead(pinB) == pinsActive)
-    {
-        lastEncoderRead |= 1;
-    }
-
-    uint8_t tbl = pgm_read_byte(&table[lastEncoderRead]);
-    if (tbl)
-    {
-        encoderValue += tbl;
-        moved = true;
-    }
-#elif ENC_DECODER == ENC_NORMAL
     // bit0 of this indicates if the status has changed
     // bit1 indicates an "overflow 3" where it goes 0->3 or 3->0
 
@@ -116,19 +74,11 @@ void ClickEncoder::handleEncoder()
     int8_t signedMovement = ((rawMovement & 1) - (rawMovement & 2));
     lastEncoderRead = encoderRead;
 
-    // encoderMovement will now show:
-    // 0 when not turned
-    // -1 turned anticlockwise
-    // 1 turned clockwise
-#else
-#error "Error: define ENC_DECODER to ENC_NORMAL or ENC_FLAKY"
-#endif // ENC_FLAKY
     encoderAccumulate += handleValues(signedMovement);
 }
 
 int8_t ClickEncoder::handleValues(int8_t moved)
 {
-
     ++lastMoved;
     if (lastMoved >= ENC_ACCEL_START)
     {

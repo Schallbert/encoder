@@ -2,38 +2,13 @@
 // Rotary Encoder Driver with Acceleration
 // Supports Click, DoubleClick, Held, LongPressRepeat
 //
-// (c) 2010 karl@pitrich.com
-// (c) 2014 karl@pitrich.com
-//
-// Timer-based rotary encoder logic by Peter Dannegger
-// http://www.mikrocontroller.net/articles/Drehgeber
-//
-// Refactored and feature added (LongPressRepeat) by Schallbert 2021
+// Refactored, logic upgraded and feature added (LongPressRepeat) by Schallbert 2021
 // ----------------------------------------------------------------------------
 
-#ifndef __have__ClickEncoder_h__
-#define __have__ClickEncoder_h__
-
-// ----------------------------------------------------------------------------
+#ifndef CLICKENCODER_H
+#define CLICKENCODER_H
 
 #include <Arduino.h>
-
-// ----------------------------------------------------------------------------
-
-#define ENC_NORMAL (1 << 1) // use Peter Danneger's decoder
-#define ENC_FLAKY (1 << 2)  // use Table-based decoder
-
-// ----------------------------------------------------------------------------
-
-#ifndef ENC_DECODER
-#define ENC_DECODER ENC_NORMAL
-#endif
-
-#if ENC_DECODER == ENC_FLAKY
-#ifndef ENC_HALFSTEP
-#define ENC_HALFSTEP 1 // use table for half step per default
-#endif
-#endif
 
 // ----------------------------------------------------------------------------
 
@@ -113,4 +88,4 @@ private:
 
 // ----------------------------------------------------------------------------
 
-#endif // __have__ClickEncoder_h__
+#endif // CLICKENCODER_H
