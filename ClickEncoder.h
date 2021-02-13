@@ -29,7 +29,7 @@ constexpr uint16_t ENC_HOLDTIME = 1200;               // report held button afte
 class Encoder
 {
 public:
-    Encoder(uint8_t A, uint8_t B, uint8_t stepsPerNotch = 4, bool active = LOW);
+    explicit Encoder(uint8_t A, uint8_t B, uint8_t stepsPerNotch = 4, bool active = LOW);
     ~Encoder() = default;
     Encoder(const Encoder &cpyEncoder) = delete;
     Encoder &operator=(const Encoder &srcEncoder) = delete;
@@ -70,7 +70,7 @@ public:
         DoubleClicked
     };
 
-    Button(uint8_t BTN = -1, bool active = LOW);
+    explicit Button(uint8_t BTN, bool active = LOW);
     ~Button() = default;
     Button(const Button &cpyButton) = delete;
     Button &operator=(const Button &srcButton) = delete;
@@ -90,7 +90,7 @@ private:
 
     bool doubleClickEnabled{false};
     bool longPressRepeatEnabled{false};
-    volatile eButtonStates button;
+    volatile eButtonStates buttonState{Open};
     uint8_t doubleClickTicks{0};
     uint16_t keyDownTicks{0};
     uint16_t lastButtonCheckCount{0};
@@ -99,7 +99,7 @@ private:
 class ClickEncoder
 {
 public:
-    ClickEncoder(uint8_t A, uint8_t B, uint8_t BTN = -1,
+    explicit ClickEncoder(uint8_t A, uint8_t B, uint8_t BTN = -1,
                  uint8_t stepsPerNotch = 4, bool active = LOW);
     ~ClickEncoder();
     ClickEncoder(const ClickEncoder &cpyEncoder) = delete;

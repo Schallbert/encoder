@@ -16,9 +16,9 @@ Encoder::Encoder(uint8_t A,
                  uint8_t B,
                  uint8_t stepsPerNotch,
                  bool active) : pinA(A),
-                                      pinB(B),
-                                      stepsPerNotch(stepsPerNotch),
-                                      pinActiveState(active)
+                                pinB(B),
+                                stepsPerNotch(stepsPerNotch),
+                                pinActiveState(active)
 {
     uint8_t configType = (pinActiveState == LOW) ? INPUT_PULLUP : INPUT;
     pinMode(pinA, configType);
@@ -28,7 +28,7 @@ Encoder::Encoder(uint8_t A,
 // Button pin BTN and active state to be defined.
 Button::Button(uint8_t BTN,
                bool active) : pinBTN(BTN),
-                                    pinActiveState(active)
+                              pinActiveState(active)
 {
     uint8_t configType = (pinActiveState == LOW) ? INPUT_PULLUP : INPUT;
     pinMode(pinBTN, configType);
@@ -121,7 +121,7 @@ int8_t Encoder::handleValues(int8_t moved)
     {
         lastMovedCount = 0;
         // moved && acceleration enabled
-        uint8_t acceleration{(ENC_ACCEL_START - lastMovedCount) / ENC_ACCEL_SLOPE};
+        int16_t acceleration = (ENC_ACCEL_START / ENC_ACCEL_SLOPE) - (lastMovedCount / ENC_ACCEL_SLOPE);
         if (moved > 0)
         {
             return acceleration;
@@ -174,11 +174,11 @@ void Button::handleButton()
 
 void Button::handleButtonPressed()
 {
-    button = Closed;
+    buttonState = Closed;
     keyDownTicks++;
     if (keyDownTicks >= (ENC_HOLDTIME / ENC_BUTTONINTERVAL))
     {
-        button = Held;
+        buttonState = Held;
         if (!longPressRepeatEnabled)
         {
             return;
@@ -187,7 +187,7 @@ void Button::handleButtonPressed()
         // Blip out LongPressRepeat once per interval
         if (keyDownTicks > ((ENC_LONGPRESSREPEATINTERVAL + ENC_HOLDTIME) / ENC_BUTTONINTERVAL))
         {
-            button = LongPressRepeat;
+            buttonState = LongPressRepeat;
         }
     }
 }
@@ -195,13 +195,13 @@ void Button::handleButtonPressed()
 void Button::handleButtonReleased()
 {
     keyDownTicks = 0;
-    if (button == Held)
+    if (buttonState == Held)
     {
-        button = Released;
+        buttonState = Released;
     }
-    else if (button == Closed)
+    else if (buttonState == Closed)
     {
-        button = Clicked;
+        buttonState = Clicked;
         if (!doubleClickEnabled)
         {
             return;
@@ -209,13 +209,13 @@ void Button::handleButtonReleased()
 
         if (doubleClickTicks == 0)
         {
-            // set counter and wait for another click
+            // reset counter and wait for another click
             doubleClickTicks = (ENC_DOUBLECLICKTIME / ENC_BUTTONINTERVAL);
         }
         else
         {
             //doubleclick active and not elapsed!
-            button = DoubleClicked;
+            buttonState = DoubleClicked;
             doubleClickTicks = 0;
         }
     }
@@ -223,7 +223,7 @@ void Button::handleButtonReleased()
 
 Button::eButtonStates Button::getButton(void)
 {
-    volatile Button::eButtonStates result = button;
+    volatile Button::eButtonStates result = buttonState;
     if (result == LongPressRepeat)
     {
         // Reset to "Held"
@@ -231,9 +231,9 @@ Button::eButtonStates Button::getButton(void)
     }
 
     // reset after readout. Conditional to neither miss nor repeat DoubleClicks or Helds
-    if (button != Closed)
+    if (buttonState != Closed)
     {
-        button = Open;
+        buttonState = Open;
     }
 
     return result;
