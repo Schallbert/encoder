@@ -13,21 +13,44 @@
 // Most of them have notches and register 4 steps (ticks) per notch.
 // If the encoder has no button, don't give it a PIN number.
 */
+Encoder::Encoder(uint8_t A,
+                 uint8_t B,
+                 uint8_t stepsPerNotch = 4,
+                 bool active = LOW) : pinA(A),
+                                      pinB(B),
+                                      stepsPerNotch(stepsPerNotch),
+                                      pinActiveState(active)
+{
+    uint8_t configType = (pinActiveState == LOW) ? INPUT_PULLUP : INPUT;
+    pinMode(pinA, configType);
+    pinMode(pinB, configType);
+}
+
+Button::Button(uint8_t BTN = -1,
+               bool active = LOW) : pinBTN(BTN),
+                                    pinActiveState(active)
+{
+    uint8_t configType = (pinActiveState == LOW) ? INPUT_PULLUP : INPUT;
+    pinMode(pinBTN, configType);
+}
+
 ClickEncoder::ClickEncoder(
     uint8_t A,
     uint8_t B,
     uint8_t BTN,
     uint8_t stepsPerNotch,
-    bool active) : pinA(A),
-                   pinB(B),
-                   pinBTN(BTN),
-                   stepsPerNotch(stepsPerNotch),
-                   pinsActive(active)
+    bool active)
 {
-    uint8_t configType = (pinsActive == LOW) ? INPUT_PULLUP : INPUT;
-    pinMode(pinA, configType);
-    pinMode(pinB, configType);
-    pinMode(pinBTN, configType);
+    enc = new Encoder(A, B, stepsPerNotch, active);
+    btn = new Button(BTN, active);
+}
+
+ClickEncoder::~ClickEncoder()
+{
+    delete enc;
+    delete btn;
+    enc = nullptr;
+    btn = nullptr;
 }
 
 // ----------------------------------------------------------------------------
@@ -35,15 +58,23 @@ ClickEncoder::ClickEncoder(
 //
 void ClickEncoder::service(void)
 {
+    enc->service();
+    btn->service();
+}
+
+void Encoder::service()
+{
     handleEncoder();
-#ifndef WITHOUT_BUTTON
+}
+
+void Button::service()
+{
     handleButton();
-#endif // WITHOUT_BUTTON
 }
 
 // ----------------------------------------------------------------------------
 
-void ClickEncoder::handleEncoder()
+void Encoder::handleEncoder()
 {
     uint8_t encoderRead = getBitCode();
     // bit0 set = status changed, bit1 set = "overflow 3" where it goes 0->3 or 3->0
@@ -55,7 +86,24 @@ void ClickEncoder::handleEncoder()
     encoderAccumulate += handleValues(signedMovement);
 }
 
-int8_t ClickEncoder::handleValues(int8_t moved)
+uint8_t Encoder::getBitCode()
+{
+    // GrayCode convert
+    // !A && !B --> 0
+    // !A &&  B --> 1
+    //  A &&  B --> 2
+    //  A && !B --> 3
+    uint8_t currentEncoderRead{0};
+    if (digitalRead(pinA))
+    {
+        currentEncoderRead = 3;
+    }
+    // invert result's 0th bit if set
+    currentEncoderRead ^= digitalRead(pinB);
+    return currentEncoderRead;
+}
+
+int8_t Encoder::handleValues(int8_t moved)
 {
     if (lastMovedCount < ENC_ACCEL_START)
     {
@@ -81,41 +129,22 @@ int8_t ClickEncoder::handleValues(int8_t moved)
         }
     }
 }
-
-uint8_t ClickEncoder::getBitCode()
-{
-    // GrayCode convert
-    // !A && !B --> 0
-    // !A &&  B --> 1
-    //  A &&  B --> 2
-    //  A && !B --> 3
-    uint8_t currentEncoderRead{0};
-    if (digitalRead(pinA))
-    {
-        currentEncoderRead = 3;
-    }
-    // invert result's 0th bit if set
-    currentEncoderRead ^= digitalRead(pinB);
-    return currentEncoderRead;
-}
-
 // ----------------------------------------------------------------------------
 
-int16_t ClickEncoder::getIncrement()
+int16_t Encoder::getIncrement()
 {
     int16_t encoderIncrements = encoderAccumulate - lastEncoderAccumulate;
     lastEncoderAccumulate = encoderAccumulate;
     return (encoderIncrements / stepsPerNotch);
 }
 
-int16_t ClickEncoder::getAccumulate()
+int16_t Encoder::getAccumulate()
 {
     return (encoderAccumulate / stepsPerNotch);
 }
 
 // ----------------------------------------------------------------------------
-
-void ClickEncoder::handleButton()
+void Button::handleButton()
 {
     if (pinBTN == 0)
     {
@@ -129,7 +158,7 @@ void ClickEncoder::handleButton()
     }
     lastButtonCheckCount = now;
 
-    if (digitalRead(pinBTN) == pinsActive)
+    if (digitalRead(pinBTN) == pinActiveState)
     {
         handleButtonPressed();
     }
@@ -144,7 +173,7 @@ void ClickEncoder::handleButton()
     }
 }
 
-void ClickEncoder::handleButtonPressed()
+void Button::handleButtonPressed()
 {
     button = Closed;
     keyDownTicks++;
@@ -164,7 +193,7 @@ void ClickEncoder::handleButtonPressed()
     }
 }
 
-void ClickEncoder::handleButtonReleased()
+void Button::handleButtonReleased()
 {
     keyDownTicks = 0;
     if (button == Held)
@@ -193,10 +222,9 @@ void ClickEncoder::handleButtonReleased()
     }
 }
 
-#ifndef WITHOUT_BUTTON
-ClickEncoder::eButton ClickEncoder::getButton(void)
+Button::eButtonStates Button::getButton(void)
 {
-    volatile ClickEncoder::eButton result = button;
+    volatile Button::eButtonStates result = button;
     if (result == LongPressRepeat)
     {
         // Reset to "Held"
@@ -211,4 +239,3 @@ ClickEncoder::eButton ClickEncoder::getButton(void)
 
     return result;
 }
-#endif // WITHOUT_BUTTON

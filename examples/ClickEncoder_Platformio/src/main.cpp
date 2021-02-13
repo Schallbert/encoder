@@ -62,19 +62,19 @@ void printClickEncoderButtonState()
 {
     switch (testEncoder->getButton())
     {
-    case ClickEncoder::Clicked:
+    case Button::Clicked:
         Serial.println("Button clicked");
         break;
-    case ClickEncoder::DoubleClicked:
+    case Button::DoubleClicked:
         Serial.println("Button doubleClicked");
         break;
-    case ClickEncoder::Held:
+    case Button::Held:
         Serial.println("Button Held");
         break;
-    case ClickEncoder::LongPressRepeat:
+    case Button::LongPressRepeat:
         Serial.println("Button longPressRepeat");
         break;
-    case ClickEncoder::Released:
+    case Button::Released:
         Serial.println("Button released");
         break;
     default:
