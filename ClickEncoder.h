@@ -48,7 +48,7 @@ private:
     const bool pinActiveState;
 
     bool accelerationEnabled{false};
-    volatile int8_t lastEncoderRead{0};
+    volatile uint8_t lastEncoderRead{0};
     volatile int16_t encoderAccumulate{0};
     volatile int16_t lastEncoderAccumulate{0};
     volatile uint8_t lastMovedCount{ENC_ACCEL_START};
@@ -76,6 +76,7 @@ public:
     void service();
     eButtonStates getButton();
     void setDoubleClickEnabled(const bool b) { doubleClickEnabled = b; };
+    // LongPressRepeat will overlay "Held" state. Thus, "Held" shouldn't be user in user code then!
     void setLongPressRepeatEnabled(const bool b) { longPressRepeatEnabled = b; };
 
 private:
@@ -104,11 +105,15 @@ public:
     ClickEncoder &operator=(const ClickEncoder &srcEncoder) = delete;
 
     void service();
+    // returns notch changes after last poll
     int16_t getIncrement() { return enc->getIncrement(); };
+    // returns overall notch count since startup.
     int16_t getAccumulate() { return enc->getAccumulate(); };
     Button::eButtonStates getButton() {  return btn->getButton(); };
+    // If active, encoder will count overproportionally quickly if turned fast.
     void setAccelerationEnabled(const bool b) { enc->setAccelerationEnabled(b); };
     void setDoubleClickEnabled(const bool b) { btn->setDoubleClickEnabled(b); };
+    // LongPressRepeat will overlay "Held" state. Thus, "Held" shouldn't be user in user code then!
     void setLongPressRepeatEnabled(const bool b) { btn->setLongPressRepeatEnabled(b); };
 
 private:

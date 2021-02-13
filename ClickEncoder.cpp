@@ -83,7 +83,7 @@ void Encoder::handleEncoder()
     // bit0 set = status changed, bit1 set = "overflow 3" where it goes 0->3 or 3->0
     uint8_t rawMovement = encoderRead - lastEncoderRead;
     lastEncoderRead = encoderRead;
-    // This is the magic, converts raw to: -1 counterclockwise, 0 no turn, 1 clockwise
+    // This is the uint->int magic, converts raw to: -1 counterclockwise, 0 no turn, 1 clockwise
     int8_t signedMovement = ((rawMovement & 1) - (rawMovement & 2));
 
     encoderAccumulate += signedMovement;
@@ -97,11 +97,9 @@ uint8_t Encoder::getBitCode()
     // !A &&  B --> 1
     //  A &&  B --> 2
     //  A && !B --> 3
-    uint8_t currentEncoderRead{0};
-    if (digitalRead(pinA))
-    {
-        currentEncoderRead = 3;
-    }
+    uint8_t currentEncoderRead = digitalRead(pinA);
+    currentEncoderRead |= (currentEncoderRead << 1);
+    
     // invert result's 0th bit if set
     currentEncoderRead ^= digitalRead(pinB);
     return currentEncoderRead;
@@ -133,7 +131,8 @@ int8_t Encoder::handleAcceleration(int8_t direction)
 }
 // ----------------------------------------------------------------------------
 
-// returns number of steps that the encoder was turned since the last poll.
+// returns number of notches that the encoder was turned since the last poll
+// takes acceleration into account if configured
 int16_t Encoder::getIncrement()
 {
     int16_t accu = getAccumulate();
@@ -143,6 +142,7 @@ int16_t Encoder::getIncrement()
 }
 
 // returns sum of notches that the encoder was turned since startup
+// takes acceleration into account if configured
 int16_t Encoder::getAccumulate()
 {
     return (encoderAccumulate / stepsPerNotch);
@@ -223,7 +223,7 @@ void Button::handleButtonReleased()
 
 Button::eButtonStates Button::getButton(void)
 {
-    volatile Button::eButtonStates result = buttonState;
+    volatile Button::eButtonStates result{buttonState};
     if (result == LongPressRepeat)
     {
         // Reset to "Held"
