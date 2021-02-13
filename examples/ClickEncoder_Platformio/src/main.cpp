@@ -6,6 +6,8 @@
 constexpr uint8_t PIN_ENCA = 4;
 constexpr uint8_t PIN_ENCB = 5;
 constexpr uint8_t PIN_BTN = 3;
+constexpr uint8_t ENC_STEPSPERNOTCH = 4;
+constexpr bool BTN_ACTIVESTATE = LOW;
 
 constexpr uint16_t SERIAL_BAUDRATE = 9600;
 constexpr uint8_t PRINT_BASE = 10;
@@ -28,7 +30,7 @@ void setup()
     // Use the serial connection to print out encoder's behavior
     Serial.begin(SERIAL_BAUDRATE);
     // Setup and configure "full-blown" ClickEncoder
-    testEncoder = new ClickEncoder(PIN_ENCA, PIN_ENCB, PIN_BTN, 4, false);
+    testEncoder = new ClickEncoder(PIN_ENCA, PIN_ENCB, PIN_BTN, ENC_STEPSPERNOTCH, BTN_ACTIVESTATE);
     testEncoder->setAccelerationEnabled(true);
     testEncoder->setDoubleClickEnabled(true);
     testEncoder->setLongPressRepeatEnabled(true);
