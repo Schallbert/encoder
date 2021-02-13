@@ -40,7 +40,7 @@ public:
 private:
     uint8_t getBitCode();
     void handleEncoder();
-    void handleAcceleration(int8_t direction);
+    int8_t handleAcceleration(int8_t direction);
 
     const uint8_t pinA;
     const uint8_t pinB;

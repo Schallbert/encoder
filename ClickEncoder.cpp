@@ -87,7 +87,7 @@ void Encoder::handleEncoder()
     int8_t signedMovement = ((rawMovement & 1) - (rawMovement & 2));
 
     encoderAccumulate += signedMovement;
-    handleAcceleration(signedMovement);
+    encoderAccumulate += handleAcceleration(signedMovement);
 }
 
 uint8_t Encoder::getBitCode()
@@ -107,32 +107,28 @@ uint8_t Encoder::getBitCode()
     return currentEncoderRead;
 }
 
-void Encoder::handleAcceleration(int8_t direction)
+int8_t Encoder::handleAcceleration(int8_t direction)
 {
     if (lastMovedCount < ENC_ACCEL_START)
     {
         ++lastMovedCount;
     }
 
-    if (direction == 0 || !accelerationEnabled)
+    if (direction == 0 || !accelerationEnabled || (encoderAccumulate % stepsPerNotch))
     {
-        return;
+        return 0;
     }
 
-    // Only accelerate notches, no movements in between
-    if (!(encoderAccumulate % stepsPerNotch))
+    // only when moved, only with enabled acceleration, only accelerate for "full notches", no movements in between
+    int16_t acceleration = ((ENC_ACCEL_START / ENC_ACCEL_SLOPE) - (lastMovedCount / ENC_ACCEL_SLOPE));
+    lastMovedCount = 0;
+    if (direction > 0)
     {
-        // encoder has been moved a notch
-        int16_t acceleration = ((ENC_ACCEL_START / ENC_ACCEL_SLOPE) - (lastMovedCount / ENC_ACCEL_SLOPE));
-        lastMovedCount = 0;
-        if (direction > 0)
-        {
-            encoderAccumulate += acceleration;
-        }
-        else
-        {
-            encoderAccumulate -= acceleration;
-        }
+        return acceleration;
+    }
+    else
+    {
+        return -acceleration;
     }
 }
 // ----------------------------------------------------------------------------
