@@ -74,9 +74,6 @@ void printClickEncoderButtonState()
     case ClickEncoder::LongPressRepeat:
         Serial.println("Button longPressRepeat");
         break;
-    case ClickEncoder::Pressed:
-        Serial.println("Button pressed");
-        break;
     case ClickEncoder::Released:
         Serial.println("Button released");
         break;

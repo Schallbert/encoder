@@ -11,14 +11,6 @@
 #include <Arduino.h>
 
 // ----------------------------------------------------------------------------
-// eButton configuration (values for 1ms timer service calls)
-//
-constexpr uint8_t ENC_BUTTONINTERVAL = 20;            // check button every x ms, also debouce time
-constexpr uint16_t ENC_DOUBLECLICKTIME = 400;         // second click within x ms
-constexpr uint16_t ENC_LONGPRESSREPEATINTERVAL = 200; // reports repeating-held every x ms
-constexpr uint16_t ENC_HOLDTIME = 1200;               // report held button after x ms
-
-// ----------------------------------------------------------------------------
 // Acceleration configuration (for 1ms calls to ::service())
 //
 constexpr uint8_t ENC_ACCEL_START = 64; // Start increasing count > (1/tick) below tick iterval of x ms.
@@ -26,6 +18,12 @@ constexpr uint8_t ENC_ACCEL_SLOPE = 16; // below ACCEL_START, velocity progressi
 // Example: increment every 50ms, without acceleration it would count to 20 within 1sec.
 // With acceleration START@64 and SLOPE@16 it will count to 80 within 1 sec.
 
+// Button configuration (values for 1ms timer service calls)
+//
+constexpr uint8_t ENC_BUTTONINTERVAL = 20;            // check button every x ms, also debouce time
+constexpr uint16_t ENC_DOUBLECLICKTIME = 400;         // second click within x ms
+constexpr uint16_t ENC_LONGPRESSREPEATINTERVAL = 200; // reports repeating-held every x ms
+constexpr uint16_t ENC_HOLDTIME = 1200;               // report held button after x ms
 // ----------------------------------------------------------------------------
 
 class ClickEncoder
@@ -35,12 +33,9 @@ public:
     {
         Open = 0,
         Closed,
-        Pressed, // Deprecated - Not used in implementation!
-
         Held,
         LongPressRepeat,
         Released,
-
         Clicked,
         DoubleClicked
     };
@@ -79,10 +74,10 @@ private:
     const uint8_t stepsPerNotch;
     const bool pinsActive;
 #ifndef WITHOUT_BUTTON
-    bool doubleClickEnabled;
-    bool longPressRepeatEnabled;
+    bool doubleClickEnabled{false};
+    bool longPressRepeatEnabled{false};
 #endif
-    bool accelerationEnabled;
+    bool accelerationEnabled{false};
     volatile int8_t lastEncoderRead{0};
     volatile int16_t encoderAccumulate{0};
     volatile int16_t lastEncoderAccumulate{0};

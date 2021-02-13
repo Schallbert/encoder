@@ -22,10 +22,7 @@ ClickEncoder::ClickEncoder(
                    pinB(B),
                    pinBTN(BTN),
                    stepsPerNotch(stepsPerNotch),
-                   pinsActive(active),
-                   doubleClickEnabled(false),
-                   longPressRepeatEnabled(false),
-                   accelerationEnabled(false)
+                   pinsActive(active)
 {
     uint8_t configType = (pinsActive == LOW) ? INPUT_PULLUP : INPUT;
     pinMode(pinA, configType);
