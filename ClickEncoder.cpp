@@ -9,14 +9,13 @@
 
 // ----------------------------------------------------------------------------
 
-/* ClickEncoders typically have 5 pins, A, B, C (GND), BTN, GND
+// Encoders typically have 3 pins: A, B, C (GND)
 // Most of them have notches and register 4 steps (ticks) per notch.
-// If the encoder has no button, don't give it a PIN number.
-*/
+// If mixed up A and B, encoder will turn "backwards".
 Encoder::Encoder(uint8_t A,
                  uint8_t B,
-                 uint8_t stepsPerNotch = 4,
-                 bool active = LOW) : pinA(A),
+                 uint8_t stepsPerNotch,
+                 bool active) : pinA(A),
                                       pinB(B),
                                       stepsPerNotch(stepsPerNotch),
                                       pinActiveState(active)
@@ -26,14 +25,16 @@ Encoder::Encoder(uint8_t A,
     pinMode(pinB, configType);
 }
 
-Button::Button(uint8_t BTN = -1,
-               bool active = LOW) : pinBTN(BTN),
+// Button pin BTN and active state to be defined.
+Button::Button(uint8_t BTN,
+               bool active) : pinBTN(BTN),
                                     pinActiveState(active)
 {
     uint8_t configType = (pinActiveState == LOW) ? INPUT_PULLUP : INPUT;
     pinMode(pinBTN, configType);
 }
 
+/// ClickEncoders typically have 5 pins: A, B, C (enc GND), BTN, GND
 ClickEncoder::ClickEncoder(
     uint8_t A,
     uint8_t B,
@@ -55,20 +56,22 @@ ClickEncoder::~ClickEncoder()
 
 // ----------------------------------------------------------------------------
 // call this every 1 millisecond via timer ISR
-//
 void ClickEncoder::service(void)
 {
     enc->service();
     btn->service();
 }
 
+// call this every 1 millisecond via timer ISR
 void Encoder::service()
 {
     handleEncoder();
 }
 
+// call this every 1 millisecond via timer ISR
 void Button::service()
 {
+    ++lastButtonCheckCount;
     handleButton();
 }
 
@@ -131,6 +134,7 @@ int8_t Encoder::handleValues(int8_t moved)
 }
 // ----------------------------------------------------------------------------
 
+// returns number of steps that the encoder was turned since the last poll.
 int16_t Encoder::getIncrement()
 {
     int16_t encoderIncrements = encoderAccumulate - lastEncoderAccumulate;
@@ -138,6 +142,7 @@ int16_t Encoder::getIncrement()
     return (encoderIncrements / stepsPerNotch);
 }
 
+// returns overall steps that the encoder was turned since startup
 int16_t Encoder::getAccumulate()
 {
     return (encoderAccumulate / stepsPerNotch);
@@ -146,17 +151,11 @@ int16_t Encoder::getAccumulate()
 // ----------------------------------------------------------------------------
 void Button::handleButton()
 {
-    if (pinBTN == 0)
-    {
-        return; // button pin not defined
-    }
-
-    unsigned long now = millis();
-    if ((now - lastButtonCheckCount) < ENC_BUTTONINTERVAL) // checking button is sufficient every 10-30ms
+    if (lastButtonCheckCount < ENC_BUTTONINTERVAL)
     {
         return;
     }
-    lastButtonCheckCount = now;
+    lastButtonCheckCount = 0;
 
     if (digitalRead(pinBTN) == pinActiveState)
     {
