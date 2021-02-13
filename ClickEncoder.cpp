@@ -8,23 +8,11 @@
 #include "ClickEncoder.h"
 
 // ----------------------------------------------------------------------------
-// eButton configuration (values for 1ms timer service calls)
-//
-constexpr uint8_t ENC_BUTTONINTERVAL = 20;            // check button every x ms, also debouce time
-constexpr uint16_t ENC_DOUBLECLICKTIME = 400;         // second click within x ms
-constexpr uint16_t ENC_LONGPRESSREPEATINTERVAL = 200; // reports repeating-held every x ms
-constexpr uint16_t ENC_HOLDTIME = 1200;               // report held button after x ms
 
-// ----------------------------------------------------------------------------
-// Acceleration configuration (for 1ms calls to ::service())
-//
-constexpr uint8_t ENC_ACCEL_START = 64; // Start increasing count > (1/tick) below tick iterval of x ms.
-constexpr uint8_t ENC_ACCEL_SLOPE = 16;  // below ACCEL_START, velocity progression of 1/x ticks
-// Example: increment every 100ms, without acceleration it would count to 10 within 1sec.
-// With acceleration START@200 and slope@25 it will count to 50 within 1 sec.
-
-// ----------------------------------------------------------------------------
-
+/* ClickEncoders typically have 5 pins, A, B, C (GND), BTN, GND
+// Most of them have notches and register 4 steps (ticks) per notch.
+// If the encoder has no button, don't give it a PIN number.
+*/
 ClickEncoder::ClickEncoder(
     uint8_t A,
     uint8_t B,
@@ -37,12 +25,7 @@ ClickEncoder::ClickEncoder(
                    pinsActive(active),
                    doubleClickEnabled(false),
                    longPressRepeatEnabled(false),
-                   accelerationEnabled(false),
-                   lastEncoderRead(0),
-                   encoderAccumulate(0),
-                   lastEncoderAccumulate(0),
-                   lastMoved(ENC_ACCEL_START),
-                   button(Open)
+                   accelerationEnabled(false)
 {
     uint8_t configType = (pinsActive == LOW) ? INPUT_PULLUP : INPUT;
     pinMode(pinA, configType);
@@ -65,39 +48,32 @@ void ClickEncoder::service(void)
 
 void ClickEncoder::handleEncoder()
 {
-    // bit0 of this indicates if the status has changed
-    // bit1 indicates an "overflow 3" where it goes 0->3 or 3->0
-
     uint8_t encoderRead = getBitCode();
+    // bit0 set = status changed, bit1 set = "overflow 3" where it goes 0->3 or 3->0
     uint8_t rawMovement = encoderRead - lastEncoderRead;
-    // This is the magic, converts raw to: -1 counterclockwise, 0 no, 1 clockwise
-    int8_t signedMovement = ((rawMovement & 1) - (rawMovement & 2));
     lastEncoderRead = encoderRead;
+    // This is the magic, converts raw to: -1 counterclockwise, 0 no turn, 1 clockwise
+    int8_t signedMovement = ((rawMovement & 1) - (rawMovement & 2));
 
     encoderAccumulate += handleValues(signedMovement);
 }
 
 int8_t ClickEncoder::handleValues(int8_t moved)
 {
-    ++lastMoved;
-    if (lastMoved >= ENC_ACCEL_START)
+    if (lastMovedCount < ENC_ACCEL_START)
     {
-        lastMoved = ENC_ACCEL_START;
+        ++lastMovedCount;
     }
 
-    if (moved == 0)
-    {
-        return 0;
-    }
-
-    if (!accelerationEnabled)
+    if (moved == 0 || !accelerationEnabled)
     {
         return moved;
     }
     else
     {
-        uint8_t acceleration{(ENC_ACCEL_START - lastMoved) / ENC_ACCEL_SLOPE};
-        lastMoved = 0;
+        lastMovedCount = 0;
+        // moved && acceleration enabled
+        uint8_t acceleration{(ENC_ACCEL_START - lastMovedCount) / ENC_ACCEL_SLOPE};
         if (moved > 0)
         {
             return acceleration;
@@ -113,16 +89,14 @@ uint8_t ClickEncoder::getBitCode()
 {
     // GrayCode convert
     // !A && !B --> 0
-    // !A && B --> 1
-    // A && B --> 2
-    // A && !B --> 3
+    // !A &&  B --> 1
+    //  A &&  B --> 2
+    //  A && !B --> 3
     uint8_t currentEncoderRead{0};
-
     if (digitalRead(pinA))
     {
         currentEncoderRead = 3;
     }
-
     // invert result's 0th bit if set
     currentEncoderRead ^= digitalRead(pinB);
     return currentEncoderRead;
@@ -132,12 +106,9 @@ uint8_t ClickEncoder::getBitCode()
 
 int16_t ClickEncoder::getIncrement()
 {
-    int16_t result = encoderAccumulate - lastEncoderAccumulate;
+    int16_t encoderIncrements = encoderAccumulate - lastEncoderAccumulate;
     lastEncoderAccumulate = encoderAccumulate;
-
-    // divide value by stepsPerNotch
-    result = result / stepsPerNotch;
-    return result;
+    return (encoderIncrements / stepsPerNotch);
 }
 
 int16_t ClickEncoder::getAccumulate()
@@ -155,11 +126,11 @@ void ClickEncoder::handleButton()
     }
 
     unsigned long now = millis();
-    if ((now - lastButtonCheck) < ENC_BUTTONINTERVAL) // checking button is sufficient every 10-30ms
+    if ((now - lastButtonCheckCount) < ENC_BUTTONINTERVAL) // checking button is sufficient every 10-30ms
     {
         return;
     }
-    lastButtonCheck = now;
+    lastButtonCheckCount = now;
 
     if (digitalRead(pinBTN) == pinsActive)
     {

@@ -11,6 +11,22 @@
 #include <Arduino.h>
 
 // ----------------------------------------------------------------------------
+// eButton configuration (values for 1ms timer service calls)
+//
+constexpr uint8_t ENC_BUTTONINTERVAL = 20;            // check button every x ms, also debouce time
+constexpr uint16_t ENC_DOUBLECLICKTIME = 400;         // second click within x ms
+constexpr uint16_t ENC_LONGPRESSREPEATINTERVAL = 200; // reports repeating-held every x ms
+constexpr uint16_t ENC_HOLDTIME = 1200;               // report held button after x ms
+
+// ----------------------------------------------------------------------------
+// Acceleration configuration (for 1ms calls to ::service())
+//
+constexpr uint8_t ENC_ACCEL_START = 64; // Start increasing count > (1/tick) below tick iterval of x ms.
+constexpr uint8_t ENC_ACCEL_SLOPE = 16; // below ACCEL_START, velocity progression of 1/x ticks
+// Example: increment every 50ms, without acceleration it would count to 20 within 1sec.
+// With acceleration START@64 and SLOPE@16 it will count to 80 within 1 sec.
+
+// ----------------------------------------------------------------------------
 
 class ClickEncoder
 {
@@ -36,10 +52,10 @@ public:
     ClickEncoder(const ClickEncoder &cpyEncoder) = delete;
     ClickEncoder &operator=(const ClickEncoder &srcEncoder) = delete;
 
-
     void service();
     int16_t getIncrement();
     int16_t getAccumulate();
+    void setAccelerationEnabled(const bool a) { accelerationEnabled = a; };
 
 #ifndef WITHOUT_BUTTON
 public:
@@ -54,11 +70,7 @@ private:
     void handleButton();
     void handleButtonPressed();
     void handleButtonReleased();
-
 #endif
-
-public:
-    void setAccelerationEnabled(const bool a) { accelerationEnabled = a; };
 
 private:
     const uint8_t pinA;
@@ -71,21 +83,16 @@ private:
     bool longPressRepeatEnabled;
 #endif
     bool accelerationEnabled;
-    volatile int8_t lastEncoderRead;
-    volatile int16_t encoderAccumulate;
-    volatile int16_t lastEncoderAccumulate;
-    volatile uint8_t lastMoved;
-#if ENC_DECODER != ENC_NORMAL
-    static const int8_t table[16];
-#endif
+    volatile int8_t lastEncoderRead{0};
+    volatile int16_t encoderAccumulate{0};
+    volatile int16_t lastEncoderAccumulate{0};
+    volatile uint8_t lastMovedCount{ENC_ACCEL_START};
 #ifndef WITHOUT_BUTTON
     volatile eButton button;
     uint16_t keyDownTicks{0};
     uint8_t doubleClickTicks{0};
-    unsigned long lastButtonCheck{0};
+    unsigned long lastButtonCheckCount{0};
 #endif
 };
-
-// ----------------------------------------------------------------------------
 
 #endif // CLICKENCODER_H
