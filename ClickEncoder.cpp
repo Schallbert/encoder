@@ -71,7 +71,7 @@ void Encoder::service()
 // call this every 1 millisecond via timer ISR
 void Button::service()
 {
-    ++lastButtonCheckCount;
+    ++lastGetButtonCount;
     handleButton();
 }
 
@@ -86,7 +86,8 @@ void Encoder::handleEncoder()
     // This is the magic, converts raw to: -1 counterclockwise, 0 no turn, 1 clockwise
     int8_t signedMovement = ((rawMovement & 1) - (rawMovement & 2));
 
-    encoderAccumulate += handleValues(signedMovement);
+    encoderAccumulate += signedMovement;
+    handleAcceleration(signedMovement);
 }
 
 uint8_t Encoder::getBitCode()
@@ -106,29 +107,31 @@ uint8_t Encoder::getBitCode()
     return currentEncoderRead;
 }
 
-int8_t Encoder::handleValues(int8_t moved)
+void Encoder::handleAcceleration(int8_t direction)
 {
     if (lastMovedCount < ENC_ACCEL_START)
     {
         ++lastMovedCount;
     }
 
-    if (moved == 0 || !accelerationEnabled)
+    if (direction == 0 || !accelerationEnabled)
     {
-        return moved;
+        return;
     }
-    else
+
+    // Only accelerate notches, no movements in between
+    if (!(encoderAccumulate % stepsPerNotch))
     {
+        // encoder has been moved a notch
+        int16_t acceleration = ((ENC_ACCEL_START / ENC_ACCEL_SLOPE) - (lastMovedCount / ENC_ACCEL_SLOPE));
         lastMovedCount = 0;
-        // moved && acceleration enabled
-        int16_t acceleration = (ENC_ACCEL_START / ENC_ACCEL_SLOPE) - (lastMovedCount / ENC_ACCEL_SLOPE);
-        if (moved > 0)
+        if (direction > 0)
         {
-            return acceleration;
+            encoderAccumulate += acceleration;
         }
         else
         {
-            return -acceleration;
+            encoderAccumulate -= acceleration;
         }
     }
 }
@@ -137,12 +140,13 @@ int8_t Encoder::handleValues(int8_t moved)
 // returns number of steps that the encoder was turned since the last poll.
 int16_t Encoder::getIncrement()
 {
-    int16_t encoderIncrements = encoderAccumulate - lastEncoderAccumulate;
-    lastEncoderAccumulate = encoderAccumulate;
-    return (encoderIncrements / stepsPerNotch);
+    int16_t accu = getAccumulate();
+    int16_t encoderIncrements = accu - lastEncoderAccumulate;
+    lastEncoderAccumulate = accu;
+    return (encoderIncrements);
 }
 
-// returns overall steps that the encoder was turned since startup
+// returns sum of notches that the encoder was turned since startup
 int16_t Encoder::getAccumulate()
 {
     return (encoderAccumulate / stepsPerNotch);
@@ -151,11 +155,11 @@ int16_t Encoder::getAccumulate()
 // ----------------------------------------------------------------------------
 void Button::handleButton()
 {
-    if (lastButtonCheckCount < ENC_BUTTONINTERVAL)
+    if (lastGetButtonCount < ENC_BUTTONINTERVAL)
     {
         return;
     }
-    lastButtonCheckCount = 0;
+    lastGetButtonCount = 0;
 
     if (digitalRead(pinBTN) == pinActiveState)
     {

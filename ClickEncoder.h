@@ -13,10 +13,8 @@
 // ----------------------------------------------------------------------------
 // Acceleration configuration (for 1ms calls to ::service())
 //
-constexpr uint8_t ENC_ACCEL_START = 64; // Start increasing count > (1/tick) below tick iterval of x ms.
-constexpr uint8_t ENC_ACCEL_SLOPE = 16; // below ACCEL_START, velocity progression of 1/x ticks
-// Example: increment every 50ms, without acceleration it would count to 20 within 1sec.
-// With acceleration START@64 and SLOPE@16 it will count to 80 within 1 sec.
+constexpr uint8_t ENC_ACCEL_START = 150; // The smaller this value, the quicker you must turn to activate acceleration.
+constexpr uint8_t ENC_ACCEL_SLOPE = 75; // the smaller this value, the stronger the acceleration will manipulate values.
 
 // Button configuration (values for 1ms timer service calls)
 //
@@ -42,7 +40,7 @@ public:
 private:
     uint8_t getBitCode();
     void handleEncoder();
-    int8_t handleValues(int8_t moved);
+    void handleAcceleration(int8_t direction);
 
     const uint8_t pinA;
     const uint8_t pinB;
@@ -93,7 +91,7 @@ private:
     volatile eButtonStates buttonState{Open};
     uint8_t doubleClickTicks{0};
     uint16_t keyDownTicks{0};
-    uint16_t lastButtonCheckCount{0};
+    uint16_t lastGetButtonCount{0};
 };
 
 class ClickEncoder
