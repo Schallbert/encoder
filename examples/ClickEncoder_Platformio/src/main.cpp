@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <TimerOne.h>
 
 #include "../../../ClickEncoder.cpp"
 
@@ -10,12 +11,14 @@ constexpr uint8_t ENC_STEPSPERNOTCH = 4;
 constexpr bool BTN_ACTIVESTATE = LOW;
 
 constexpr uint16_t SERIAL_BAUDRATE = 9600;
+constexpr uint16_t ENC_SERVICE_US = 1000; // 1ms
 constexpr uint8_t PRINT_BASE = 10;
 
 // interval in which encoder values are fetched and printed in this demo
 constexpr uint16_t PRINTINTERVAL_MS = 100;
 
-ClickEncoder *testEncoder{nullptr};
+ClickEncoder *testClickEncoder{nullptr};
+TimerOne *timer1{nullptr};
 
 // --- forward-declared function prototypes:
 // Prints out button state
@@ -24,45 +27,48 @@ void printClickEncoderButtonState();
 void printClickEncoderValue();
 // Prints accumulated turn information
 void printClickEncoderCount();
+// Timer callback routine
+void timer1_isr();
 
 void setup()
 {
     // Use the serial connection to print out encoder's behavior
     Serial.begin(SERIAL_BAUDRATE);
     // Setup and configure "full-blown" ClickEncoder
-    testEncoder = new ClickEncoder(PIN_ENCA, PIN_ENCB, PIN_BTN, ENC_STEPSPERNOTCH, BTN_ACTIVESTATE);
-    testEncoder->setAccelerationEnabled(true);
-    testEncoder->setDoubleClickEnabled(true);
-    testEncoder->setLongPressRepeatEnabled(true);
+    testClickEncoder = new ClickEncoder(PIN_ENCA, PIN_ENCB, PIN_BTN, ENC_STEPSPERNOTCH, BTN_ACTIVESTATE);
+    testClickEncoder->setAccelerationEnabled(true);
+    testClickEncoder->setDoubleClickEnabled(true);
+    testClickEncoder->setLongPressRepeatEnabled(true);
 
     Serial.println("Hi! This is the ClickEncoder Test Program.");
     Serial.println("When connected correctly: turn right should increase the value.");
+
+    // When ClickEncoder initialized, attach service routine
+    timer1->attachInterrupt(timer1_isr);
+    timer1->initialize(ENC_SERVICE_US);
 }
 
 void loop()
 {
-    static volatile uint16_t readIntervalCount{0};
-    // In real applications, please use an interrupt-driven timer (e.g. TimerOne library)
-    _delay_ms(1);
+    // Simulate other tasks of MCU
+    _delay_ms(100);
+
+    // Gets ClickEncoder's values and prints to serial for demonstration.
+    printClickEncoderButtonState();
+    printClickEncoderValue();
+    printClickEncoderCount();
+}
+
+void timer1_isr()
+{
     // This is the Encoder's worker routine. It will physically read the hardware
     // and all most of the logic happens here. Recommended interval for this method is 1ms.
-    testEncoder->service();
-
-    // Reads Encoder's status/values and prints to serial for demonstration.
-    if (readIntervalCount >= PRINTINTERVAL_MS)
-    {
-        readIntervalCount = 0;
-
-        printClickEncoderButtonState();
-        printClickEncoderValue();
-        //printClickEncoderCount();
-    }
-    ++readIntervalCount;
+    testClickEncoder->service();
 }
 
 void printClickEncoderButtonState()
 {
-    switch (testEncoder->getButton())
+    switch (testClickEncoder->getButton())
     {
     case Button::Clicked:
         Serial.println("Button clicked");
@@ -80,25 +86,26 @@ void printClickEncoderButtonState()
         Serial.println("Button released");
         break;
     default:
-        // no output for "Open" to not spam the terminal.
+        // no output for "Open" or "Closed" to not spam the console.
         break;
     }
 }
 
 void printClickEncoderValue()
 {
-    int16_t value = testEncoder->getIncrement();
+    int16_t value = testClickEncoder->getIncrement();
     if (value != 0)
     {
         Serial.print("Encoder value: ");
-        Serial.println(value, PRINT_BASE);
+        Serial.print(value, PRINT_BASE);
+        Serial.print(" ");
     }
 }
 
 void printClickEncoderCount()
 {
     static int16_t lastValue{0};
-    int16_t value = testEncoder->getAccumulate();
+    int16_t value = testClickEncoder->getAccumulate();
     if (value != lastValue)
     {
         Serial.print("Encoder count: ");

@@ -10,6 +10,7 @@
             "includePath": [
                 "c:/Users/Lukas/Documents/Technik- Projekt/Atmel/LIBS/encoder/examples/ClickEncoder_Platformio/include",
                 "c:/Users/Lukas/Documents/Technik- Projekt/Atmel/LIBS/encoder/examples/ClickEncoder_Platformio/src",
+                "c:/Users/Lukas/Documents/Technik- Projekt/Atmel/LIBS/encoder/examples/ClickEncoder_Platformio/.pio/libdeps/nanoatmega328/TimerOne",
                 "C:/Users/Lukas/.platformio/packages/framework-arduino-avr/cores/arduino",
                 "C:/Users/Lukas/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs",
                 "C:/Users/Lukas/.platformio/lib/googletest_ID5976",
@@ -30,6 +31,7 @@
                 "path": [
                     "c:/Users/Lukas/Documents/Technik- Projekt/Atmel/LIBS/encoder/examples/ClickEncoder_Platformio/include",
                     "c:/Users/Lukas/Documents/Technik- Projekt/Atmel/LIBS/encoder/examples/ClickEncoder_Platformio/src",
+                    "c:/Users/Lukas/Documents/Technik- Projekt/Atmel/LIBS/encoder/examples/ClickEncoder_Platformio/.pio/libdeps/nanoatmega328/TimerOne",
                     "C:/Users/Lukas/.platformio/packages/framework-arduino-avr/cores/arduino",
                     "C:/Users/Lukas/.platformio/packages/framework-arduino-avr/variants/eightanaloginputs",
                     "C:/Users/Lukas/.platformio/lib/googletest_ID5976",

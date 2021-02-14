@@ -15,12 +15,15 @@ constexpr uint8_t ENC_STEPSPERNOTCH = 4;
 constexpr bool BTN_ACTIVESTATE = LOW;
 
 constexpr uint16_t SERIAL_BAUDRATE = 9600;
+constexpr uint16_t TIMER_NOTIFY_US = 1000;
 constexpr uint8_t PRINT_BASE = 10;
 
 // interval in which encoder values are fetched and printed in this demo
 constexpr uint16_t PRINTINTERVAL_MS = 100;
 
+TimerOne *timer{nullptr};
 ClickEncoder *testClickEncoder{nullptr};
+static volatile uint16_t readIntervalCount{0};
 
 // --- forward-declared function prototypes:
 // Prints out button state
@@ -29,6 +32,15 @@ void printClickEncoderButtonState();
 void printClickEncoderValue();
 // Prints accumulated turn information
 void printClickEncoderCount();
+
+
+void timerIsr()
+{
+  // This is the Encoder's worker routine. It will physically read the hardware
+  // and all most of the logic happens here. Recommended interval for this method is 1ms.
+  testClickEncoder->service();
+  ++readIntervalCount;
+}
 
 void setup()
 {
@@ -42,17 +54,13 @@ void setup()
 
     Serial.println("Hi! This is the ClickEncoder Arduino Test Program.");
     Serial.println("When connected correctly: turn right should increase the value.");
+
+    timer->initialize(TIMER_NOTIFY_US);
+    timer->attachInterrupt(timerIsr); 
 }
 
 void loop()
-{
-    static volatile uint16_t readIntervalCount{0};
-    // In real applications, please use an interrupt-driven timer (e.g. TimerOne library)
-    _delay_ms(1);
-    // This is the Encoder's worker routine. It will physically read the hardware
-    // and all most of the logic happens here. Recommended interval for this method is 1ms.
-    testClickEncoder->service();
-
+{  
     // Reads Encoder's status/values and prints to serial for demonstration.
     if (readIntervalCount >= PRINTINTERVAL_MS)
     {
@@ -61,7 +69,6 @@ void loop()
         printClickEncoderValue();
         printClickEncoderCount();
     }
-    ++readIntervalCount;
 }
 
 void printClickEncoderButtonState()
