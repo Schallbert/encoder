@@ -9,127 +9,155 @@
 
 // ----------------------------------------------------------------------------
 
-/* ClickEncoders typically have 5 pins, A, B, C (GND), BTN, GND
+// Encoders typically have 3 pins: A, B, C (GND)
 // Most of them have notches and register 4 steps (ticks) per notch.
-// If the encoder has no button, don't give it a PIN number.
-*/
+// If mixed up A and B, encoder will turn "backwards".
+Encoder::Encoder(uint8_t A,
+                 uint8_t B,
+                 uint8_t stepsPerNotch,
+                 bool active) : pinA(A),
+                                pinB(B),
+                                stepsPerNotch(stepsPerNotch),
+                                pinActiveState(active)
+{
+    uint8_t configType = (pinActiveState == LOW) ? INPUT_PULLUP : INPUT;
+    pinMode(pinA, configType);
+    pinMode(pinB, configType);
+}
+
+// Button pin BTN and active state to be defined.
+Button::Button(uint8_t BTN,
+               bool active) : pinBTN(BTN),
+                              pinActiveState(active)
+{
+    uint8_t configType = (pinActiveState == LOW) ? INPUT_PULLUP : INPUT;
+    pinMode(pinBTN, configType);
+}
+
+/// ClickEncoders typically have 5 pins: A, B, C (enc GND), BTN, GND
 ClickEncoder::ClickEncoder(
     uint8_t A,
     uint8_t B,
     uint8_t BTN,
     uint8_t stepsPerNotch,
-    bool active) : pinA(A),
-                   pinB(B),
-                   pinBTN(BTN),
-                   stepsPerNotch(stepsPerNotch),
-                   pinsActive(active)
+    bool active)
 {
-    uint8_t configType = (pinsActive == LOW) ? INPUT_PULLUP : INPUT;
-    pinMode(pinA, configType);
-    pinMode(pinB, configType);
-    pinMode(pinBTN, configType);
+    enc = new Encoder(A, B, stepsPerNotch, active);
+    btn = new Button(BTN, active);
+}
+
+ClickEncoder::~ClickEncoder()
+{
+    delete enc;
+    delete btn;
+    enc = nullptr;
+    btn = nullptr;
 }
 
 // ----------------------------------------------------------------------------
 // call this every 1 millisecond via timer ISR
-//
 void ClickEncoder::service(void)
 {
+    enc->service();
+    btn->service();
+}
+
+// call this every 1 millisecond via timer ISR
+void Encoder::service()
+{
     handleEncoder();
-#ifndef WITHOUT_BUTTON
+}
+
+// call this every 1 millisecond via timer ISR
+void Button::service()
+{
+    ++lastGetButtonCount;
     handleButton();
-#endif // WITHOUT_BUTTON
 }
 
 // ----------------------------------------------------------------------------
 
-void ClickEncoder::handleEncoder()
+void Encoder::handleEncoder()
 {
     uint8_t encoderRead = getBitCode();
     // bit0 set = status changed, bit1 set = "overflow 3" where it goes 0->3 or 3->0
     uint8_t rawMovement = encoderRead - lastEncoderRead;
     lastEncoderRead = encoderRead;
-    // This is the magic, converts raw to: -1 counterclockwise, 0 no turn, 1 clockwise
+    // This is the uint->int magic, converts raw to: -1 counterclockwise, 0 no turn, 1 clockwise
     int8_t signedMovement = ((rawMovement & 1) - (rawMovement & 2));
 
-    encoderAccumulate += handleValues(signedMovement);
+    encoderAccumulate += signedMovement;
+    encoderAccumulate += handleAcceleration(signedMovement);
 }
 
-int8_t ClickEncoder::handleValues(int8_t moved)
-{
-    if (lastMovedCount < ENC_ACCEL_START)
-    {
-        ++lastMovedCount;
-    }
-
-    if (moved == 0 || !accelerationEnabled)
-    {
-        return moved;
-    }
-    else
-    {
-        lastMovedCount = 0;
-        // moved && acceleration enabled
-        uint8_t acceleration{(ENC_ACCEL_START - lastMovedCount) / ENC_ACCEL_SLOPE};
-        if (moved > 0)
-        {
-            return acceleration;
-        }
-        else
-        {
-            return -acceleration;
-        }
-    }
-}
-
-uint8_t ClickEncoder::getBitCode()
+uint8_t Encoder::getBitCode()
 {
     // GrayCode convert
     // !A && !B --> 0
     // !A &&  B --> 1
     //  A &&  B --> 2
     //  A && !B --> 3
-    uint8_t currentEncoderRead{0};
-    if (digitalRead(pinA))
-    {
-        currentEncoderRead = 3;
-    }
+    uint8_t currentEncoderRead = digitalRead(pinA);
+    currentEncoderRead |= (currentEncoderRead << 1);
+    
     // invert result's 0th bit if set
     currentEncoderRead ^= digitalRead(pinB);
     return currentEncoderRead;
 }
 
+int8_t Encoder::handleAcceleration(int8_t direction)
+{
+    if (lastMovedCount < ENC_ACCEL_START)
+    {
+        ++lastMovedCount;
+    }
+
+    if (direction == 0 || !accelerationEnabled || (encoderAccumulate % stepsPerNotch))
+    {
+        return 0;
+    }
+
+    // only when moved, only with enabled acceleration, only accelerate for "full notches", no movements in between
+    int16_t acceleration = ((ENC_ACCEL_START / ENC_ACCEL_SLOPE) - (lastMovedCount / ENC_ACCEL_SLOPE));
+    lastMovedCount = 0;
+    if (direction > 0)
+    {
+        return acceleration;
+    }
+    else
+    {
+        return -acceleration;
+    }
+}
 // ----------------------------------------------------------------------------
 
-int16_t ClickEncoder::getIncrement()
+// returns number of notches that the encoder was turned since the last poll
+// takes acceleration into account if configured
+int16_t Encoder::getIncrement()
 {
-    int16_t encoderIncrements = encoderAccumulate - lastEncoderAccumulate;
-    lastEncoderAccumulate = encoderAccumulate;
-    return (encoderIncrements / stepsPerNotch);
+    int16_t accu = getAccumulate();
+    int16_t encoderIncrements = accu - lastEncoderAccumulate;
+    lastEncoderAccumulate = accu;
+    return (encoderIncrements);
 }
 
-int16_t ClickEncoder::getAccumulate()
+// returns sum of notches that the encoder was turned since startup
+// takes acceleration into account if configured
+int16_t Encoder::getAccumulate()
 {
     return (encoderAccumulate / stepsPerNotch);
 }
 
 // ----------------------------------------------------------------------------
-
-void ClickEncoder::handleButton()
+void Button::handleButton()
 {
-    if (pinBTN == 0)
-    {
-        return; // button pin not defined
-    }
-
-    unsigned long now = millis();
-    if ((now - lastButtonCheckCount) < ENC_BUTTONINTERVAL) // checking button is sufficient every 10-30ms
+    if (lastGetButtonCount < ENC_BUTTONINTERVAL)
     {
         return;
     }
-    lastButtonCheckCount = now;
+    lastGetButtonCount = 0;
 
-    if (digitalRead(pinBTN) == pinsActive)
+    if (digitalRead(pinBTN) == pinActiveState)
     {
         handleButtonPressed();
     }
@@ -144,13 +172,13 @@ void ClickEncoder::handleButton()
     }
 }
 
-void ClickEncoder::handleButtonPressed()
+void Button::handleButtonPressed()
 {
-    button = Closed;
+    buttonState = Closed;
     keyDownTicks++;
     if (keyDownTicks >= (ENC_HOLDTIME / ENC_BUTTONINTERVAL))
     {
-        button = Held;
+        buttonState = Held;
         if (!longPressRepeatEnabled)
         {
             return;
@@ -159,21 +187,21 @@ void ClickEncoder::handleButtonPressed()
         // Blip out LongPressRepeat once per interval
         if (keyDownTicks > ((ENC_LONGPRESSREPEATINTERVAL + ENC_HOLDTIME) / ENC_BUTTONINTERVAL))
         {
-            button = LongPressRepeat;
+            buttonState = LongPressRepeat;
         }
     }
 }
 
-void ClickEncoder::handleButtonReleased()
+void Button::handleButtonReleased()
 {
     keyDownTicks = 0;
-    if (button == Held)
+    if (buttonState == Held)
     {
-        button = Released;
+        buttonState = Released;
     }
-    else if (button == Closed)
+    else if (buttonState == Closed)
     {
-        button = Clicked;
+        buttonState = Clicked;
         if (!doubleClickEnabled)
         {
             return;
@@ -181,22 +209,21 @@ void ClickEncoder::handleButtonReleased()
 
         if (doubleClickTicks == 0)
         {
-            // set counter and wait for another click
+            // reset counter and wait for another click
             doubleClickTicks = (ENC_DOUBLECLICKTIME / ENC_BUTTONINTERVAL);
         }
         else
         {
             //doubleclick active and not elapsed!
-            button = DoubleClicked;
+            buttonState = DoubleClicked;
             doubleClickTicks = 0;
         }
     }
 }
 
-#ifndef WITHOUT_BUTTON
-ClickEncoder::eButton ClickEncoder::getButton(void)
+Button::eButtonStates Button::getButton(void)
 {
-    volatile ClickEncoder::eButton result = button;
+    volatile Button::eButtonStates result{buttonState};
     if (result == LongPressRepeat)
     {
         // Reset to "Held"
@@ -204,11 +231,10 @@ ClickEncoder::eButton ClickEncoder::getButton(void)
     }
 
     // reset after readout. Conditional to neither miss nor repeat DoubleClicks or Helds
-    if (button != Closed)
+    if (buttonState != Closed)
     {
-        button = Open;
+        buttonState = Open;
     }
 
     return result;
 }
-#endif // WITHOUT_BUTTON
