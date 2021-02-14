@@ -2,48 +2,39 @@ ClickEncoder
 =============
 
 > Arduino library to handle rotary encoders **with** buttons as a user input device.
-Arduino RotaryEncoder with Button Implementation.
+Rotary Encoder with pushbutton Implementation `ClickEncoder`. Also provides `Button` only or `Encoder` only (without button), each as a class on its own.
 
 
 - Timer-Based: Works on any IO-Pin.
-- Supports rotary acceleration, so when the encoder is rotated faster, the encoders value will increment faster
-- Button reports multiple states: `Clicked`, `DoubleClicked`, `Held` and `Released`
+- Supports rotary acceleration, so when the encoder is rotated more quickly, the encoders value will change over-proportionally.
+- Button reports multiple states: `Open/Closed`, `Clicked`, `DoubleClicked`, `Held`, `Released`, and `LongPressRepeat`. 
 
-Encoder and button can be connected to any input pin, as this library requires it's timer interrupt service routine ClickEncoder:service() to be called every millisecond. The example uses [TimerOne] for that.
+Encoder and button can be connected to any input pin, as this library requires it's timer interrupt service routine ::service() to be called every millisecond. The example uses [TimerOne] for that.
 
-See the example application [ClickEncoderTest] for details,
-or see it in action at my modified [reflow oven controller]
+See the example applications, optimized for Arduino IDE / PlatformIO IDE.
 
 ### Encoder
-The library supports **acceleration**, so when the encoder is rotated faster, the encoders value will increment faster.
+The library supports **acceleration**, so when the encoder is rotated more quickly, the encoders‘ value will increment overproportionally fast.
 
-Acceleration can be enabled or disabled at runtine using `setAccelerationEnabled(bool)`.
+Acceleration can be enabled or disabled at runtine using `setAccelerationEnabled(bool)` and tuned in a header constant.
 
-For instance, it makes sense to disable acceleration when entering a configuration menu that will be navigated using the encoder.
+For instance, it may make sense to enable acceleration for a long list to scroll through quickly, and switching it back off afterwards.
 
-**Please note** that the acceleration parameters have been tuned for **1ms timer** intervals, and need to be changed if you decide to call the service method in another interval. (You'd need to increase ENC_ACCEL_INC and ENC_ACCEL_INC).
+**Please note** parameters for acceleration, held, doubleClick, and longPressRepeat have been tuned for **1ms timer** intervals, and need to be changed if you decide to call the service method in another interval.
 
-Depending on the type of your encoder, you can define use the constructors parameter `stepsPerNotch` an set it to either `1`, `2` or `4` steps per notch, with `1` being the default.
-
-If you have trouble with certain encoders, try 
-
-    #define ENC_DECODER (1 << 2)
-
-to use a table-based decoder, which can then be tuned using 
-
-    #define ENC_HALFSTEP
-
-The default is ENC_HALFSTEP 1.
+Depending on the type of your encoder, you can define use the constructors parameter `stepsPerNotch` an set it to either `1`, `2` or `4` steps per notch (most encoders I used have 4 steps per notch).
 
 ### Button
-The Button reports multiple states: `Clicked`, `DoubleClicked`, `Held` and `Released`. You can fine-tune the timings in the library's header file.
+The Button reports multiple states: `Open/Closed`, `Clicked`, `DoubleClicked`, `Held`, `Released`, and `LongPressRepeat`. You can fine-tune the timings in the library's header file. 
 
-If your encoder does not have a button, and you need to save program memory, use `#define WITHOUT_BUTTON 1`
-prior including `ClickEncoder.h`, and ignore the third parameter `BTN` of the constructor.
+If LongPressRepeat is configured, the button will repeatedly send a signal when it is held for a longer time. It is not recommended to evaluate both `Held` and `LongPressRepeat` at the same time as they are mutually exclusive.
 
+`DoubleClick` and `LongPressRepeat` ability can be modified at runtime.
 
+### Additional features
+Algorithm has (new) complex glitch & contact bounce suppression that makes it very accurate. That’s why the library takes a little more program space than other comparable libraries. 
+
+### Links
 [TimerOne]:http://playground.arduino.cc/Code/Timer1
-[Branch arduino]:https://github.com/0xPIT/encoder/tree/arduino
-[ClickEncoderTest]:https://github.com/0xPIT/encoder/blob/arduino/examples/ClickEncoderTest/ClickEncoderTest.ino
-[reflow oven controller]:https://github.com/0xPIT/reflowOvenController
-
+[TimerOne repo]:https://github.com/PaulStoffregen/TimerOne
+[ClickEncoder]:https://github.com/Schallbert/encoder
