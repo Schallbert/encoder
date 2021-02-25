@@ -1,7 +1,7 @@
 // Import the ClickEncoder library: 
 // 1. Download the git repository 
 // 2. add ClickEncoder.h and .cpp to a Zip file.
-// 2. use Scetch->Add Library->add .ZIP library... and locate the Zip folder.
+// 2. use Scetch >> Add Library >> add .ZIP library... and locate the Zip folder.
 #include <ClickEncoder.h>
 // TimerOne is an official Arduino library so you should be able to locate
 // and install using the library manager.
@@ -21,9 +21,8 @@ constexpr uint8_t PRINT_BASE = 10;
 // interval in which encoder values are fetched and printed in this demo
 constexpr uint16_t PRINTINTERVAL_MS = 100;
 
-TimerOne *timer{nullptr};
-ClickEncoder *testClickEncoder{nullptr};
-static volatile uint16_t readIntervalCount{0};
+static TimerOne timer;
+static ClickEncoder exampleClickEncoder{PIN_ENCA, PIN_ENCB, PIN_BTN, ENC_STEPSPERNOTCH, BTN_ACTIVESTATE};
 
 // --- forward-declared function prototypes:
 // Prints out button state
@@ -38,8 +37,7 @@ void timerIsr()
 {
   // This is the Encoder's worker routine. It will physically read the hardware
   // and all most of the logic happens here. Recommended interval for this method is 1ms.
-  testClickEncoder->service();
-  ++readIntervalCount;
+  exampleClickEncoder.service();
 }
 
 void setup()
@@ -47,33 +45,29 @@ void setup()
     // Use the serial connection to print out encoder's behavior
     Serial.begin(SERIAL_BAUDRATE);
     // Setup and configure "full-blown" ClickEncoder
-    testClickEncoder = new ClickEncoder(PIN_ENCA, PIN_ENCB, PIN_BTN, ENC_STEPSPERNOTCH, BTN_ACTIVESTATE);
-    testClickEncoder->setAccelerationEnabled(true);
-    testClickEncoder->setDoubleClickEnabled(true);
-    testClickEncoder->setLongPressRepeatEnabled(true);
+    exampleClickEncoder.setAccelerationEnabled(true);
+    exampleClickEncoder.setDoubleClickEnabled(true);
+    exampleClickEncoder.setLongPressRepeatEnabled(true);
 
-    Serial.println("Hi! This is the ClickEncoder Arduino Test Program.");
+    Serial.println("Hi! This is the ClickEncoder Arduino Example Program.");
     Serial.println("When connected correctly: turn right should increase the value.");
 
-    timer->initialize(TIMER_NOTIFY_US);
-    timer->attachInterrupt(timerIsr); 
+    timer.initialize(TIMER_NOTIFY_US);
+    timer.attachInterrupt(timerIsr); 
 }
 
 void loop()
 {  
+    _delay_ms(PRINTINTERVAL_MS); // simulate doSomething
     // Reads Encoder's status/values and prints to serial for demonstration.
-    if (readIntervalCount >= PRINTINTERVAL_MS)
-    {
-        readIntervalCount = 0;
-        printClickEncoderButtonState();
-        printClickEncoderValue();
-        printClickEncoderCount();
-    }
+    printClickEncoderButtonState();
+    printClickEncoderValue();
+    printClickEncoderCount();
 }
 
 void printClickEncoderButtonState()
 {
-    switch (testClickEncoder->getButton())
+    switch (exampleClickEncoder.getButton())
     {
     case Button::Clicked:
         Serial.println("Button clicked");
@@ -98,7 +92,7 @@ void printClickEncoderButtonState()
 
 void printClickEncoderValue()
 {
-    int16_t value = testClickEncoder->getIncrement();
+    int16_t value = exampleClickEncoder.getIncrement();
     if (value != 0)
     {
         Serial.print("Encoder value: ");
@@ -109,7 +103,7 @@ void printClickEncoderValue()
 void printClickEncoderCount()
 {
     static int16_t lastValue{0};
-    int16_t value = testClickEncoder->getAccumulate();
+    int16_t value = exampleClickEncoder.getAccumulate();
     if (value != lastValue)
     {
         Serial.print("Encoder count: ");

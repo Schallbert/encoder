@@ -1,7 +1,7 @@
 #include <Arduino.h>
-#include <TimerOne.h>
 
-#include "../../../ClickEncoder.cpp"
+#include <ClickEncoder.h>
+#include <TimerOne.h>
 
 // Port Pin IDs for Arduino
 constexpr uint8_t PIN_ENCA = 4;
@@ -17,8 +17,8 @@ constexpr uint8_t PRINT_BASE = 10;
 // interval in which encoder values are fetched and printed in this demo
 constexpr uint16_t PRINTINTERVAL_MS = 100;
 
-ClickEncoder *testClickEncoder{nullptr};
-TimerOne *timer1{nullptr};
+static ClickEncoder exampleClickEncoder{PIN_ENCA, PIN_ENCB, PIN_BTN, ENC_STEPSPERNOTCH, BTN_ACTIVESTATE};
+static TimerOne timer1;
 
 // --- forward-declared function prototypes:
 // Prints out button state
@@ -35,23 +35,22 @@ void setup()
     // Use the serial connection to print out encoder's behavior
     Serial.begin(SERIAL_BAUDRATE);
     // Setup and configure "full-blown" ClickEncoder
-    testClickEncoder = new ClickEncoder(PIN_ENCA, PIN_ENCB, PIN_BTN, ENC_STEPSPERNOTCH, BTN_ACTIVESTATE);
-    testClickEncoder->setAccelerationEnabled(true);
-    testClickEncoder->setDoubleClickEnabled(true);
-    testClickEncoder->setLongPressRepeatEnabled(true);
+    exampleClickEncoder.setAccelerationEnabled(true);
+    exampleClickEncoder.setDoubleClickEnabled(true);
+    exampleClickEncoder.setLongPressRepeatEnabled(true);
 
-    Serial.println("Hi! This is the ClickEncoder Test Program.");
+    Serial.println("Hi! This is the PLatformIO ClickEncoder Example Program.");
     Serial.println("When connected correctly: turn right should increase the value.");
 
     // When ClickEncoder initialized, attach service routine
-    timer1->attachInterrupt(timer1_isr);
-    timer1->initialize(ENC_SERVICE_US);
+    timer1.attachInterrupt(timer1_isr);
+    timer1.initialize(ENC_SERVICE_US);
 }
 
 void loop()
 {
     // Simulate other tasks of MCU
-    _delay_ms(100);
+    _delay_ms(PRINTINTERVAL_MS);
 
     // Gets ClickEncoder's values and prints to serial for demonstration.
     printClickEncoderButtonState();
@@ -63,12 +62,12 @@ void timer1_isr()
 {
     // This is the Encoder's worker routine. It will physically read the hardware
     // and all most of the logic happens here. Recommended interval for this method is 1ms.
-    testClickEncoder->service();
+    exampleClickEncoder.service();
 }
 
 void printClickEncoderButtonState()
 {
-    switch (testClickEncoder->getButton())
+    switch (exampleClickEncoder.getButton())
     {
     case Button::Clicked:
         Serial.println("Button clicked");
@@ -93,7 +92,7 @@ void printClickEncoderButtonState()
 
 void printClickEncoderValue()
 {
-    int16_t value = testClickEncoder->getIncrement();
+    int16_t value = exampleClickEncoder.getIncrement();
     if (value != 0)
     {
         Serial.print("Encoder value: ");
@@ -105,7 +104,7 @@ void printClickEncoderValue()
 void printClickEncoderCount()
 {
     static int16_t lastValue{0};
-    int16_t value = testClickEncoder->getAccumulate();
+    int16_t value = exampleClickEncoder.getAccumulate();
     if (value != lastValue)
     {
         Serial.print("Encoder count: ");

@@ -11,3 +11,9 @@
 *.lai
 *.la
 *.a
+
+# Project directories
+/examples/ClickEncoder_Platformio/.pio/
+/examples/ClickEncoder_Platformio/.vscode/
+/examples/ClickEncoder_Platformio/include/
+/examples/ClickEncoder_Platformio/lib/
