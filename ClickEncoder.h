@@ -8,7 +8,11 @@
 #ifndef CLICKENCODER_H
 #define CLICKENCODER_H
 
-#include <Arduino.h>
+#ifdef UNIT_TEST
+    #include "ArduinoFake.h"
+#else
+    #include "Arduino.h"
+#endif
 
 // ----------------------------------------------------------------------------
 // Acceleration configuration (for 1ms calls to ::service())
@@ -92,7 +96,7 @@ private:
     volatile eButtonStates buttonState{Open};
     uint8_t doubleClickTicks{0};
     uint16_t keyDownTicks{0};
-    uint16_t lastGetButtonCount{0};
+    uint16_t lastGetButtonCount{ENC_BUTTONINTERVAL};
 };
 
 class ClickEncoder

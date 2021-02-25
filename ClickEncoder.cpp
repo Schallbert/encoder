@@ -175,7 +175,7 @@ void Button::handleButton()
 void Button::handleButtonPressed()
 {
     buttonState = Closed;
-    keyDownTicks++;
+    ++keyDownTicks;
     if (keyDownTicks >= (ENC_HOLDTIME / ENC_BUTTONINTERVAL))
     {
         buttonState = Held;
