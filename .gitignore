@@ -1,3 +1,6 @@
+# Releases
+*.tar.gz
+
 # Compiled Object files
 *.slo
 *.lo
